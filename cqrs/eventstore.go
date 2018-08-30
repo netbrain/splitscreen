@@ -5,26 +5,34 @@ import (
 	"fmt"
 )
 
-var events []*Event
-var mutex sync.Mutex
+type EventStore interface {
+	Store(e *Event) error
+	Load(id string, typ AggregateType) []*Event
+}
 
-func Store(e *Event) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for _,pe := range events {
+type MemoryEventStore struct {
+	events []*Event
+	mutex sync.Mutex
+}
+
+
+func (m *MemoryEventStore) Store(e *Event) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	for _,pe := range m.events {
 		if pe.Aggregate.ID == e.Aggregate.ID && pe.Aggregate.Version == e.Aggregate.Version + 1 {
 			return fmt.Errorf("version conflict")
 		}
 	}
-	events = append(events,e)
+	m.events = append(m.events,e)
 	return nil
 }
 
-func Load(id string, typ AggregateType) []*Event {
+func (m *MemoryEventStore) Load(id string, typ AggregateType) []*Event {
 	var out []*Event
-	mutex.Lock()
-	defer mutex.Unlock()
-	for _,pe := range events {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	for _,pe := range m.events {
 		if pe.Aggregate.ID == id && pe.Aggregate.Type == typ {
 			out = append(out,pe)
 		}

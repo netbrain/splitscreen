@@ -2,6 +2,7 @@ package cqrs
 
 import (
 	"fmt"
+	"context"
 )
 
 type AggregateType string
@@ -29,7 +30,7 @@ func (a *Aggregate) ReplayMode() bool {
 	return a.replayMode
 }
 
-func (a *Aggregate) Apply(e *Event) error {
+func (a *Aggregate) Apply(ctx context.Context,e *Event) error {
 	if a.Version == 0 {
 		a.ID = e.ID
 	}
@@ -44,7 +45,7 @@ func (a *Aggregate) Apply(e *Event) error {
 			return fmt.Errorf("version mismatch during replay")
 		}
 	}
-	return a.Impl.Apply(e)
+	return a.Impl.Apply(ctx,e)
 }
 
 
@@ -65,7 +66,7 @@ func (a *Aggregate) Pending(e *Event) bool {
 func (a *Aggregate) Commit() error {
 	for _,e := range a.uncommitted {
 		e.Aggregate.Version = a.Version + 1
-		if err := Store(e); err != nil {
+		if err := eventstore.Store(e); err != nil {
 			return err
 		}
 		a.Version++
@@ -74,9 +75,9 @@ func (a *Aggregate) Commit() error {
 	return nil
 }
 
-func (a *Aggregate) Handle(c *Command) error {
+func (a *Aggregate) Handle(ctx context.Context,c *Command) error {
 	if a.Version != c.Aggregate.Version {
 		return fmt.Errorf("command/aggregate version mismatch: %d != %d",c.Aggregate.Version, a.Version)
 	}
-	return a.Impl.Handle(c)
+	return a.Impl.Handle(ctx,c)
 }

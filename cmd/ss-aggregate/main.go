@@ -77,6 +77,9 @@ const (
 
 func init(){
 	cqrs.RegisterAggregate({{.Aggregate}}Type,{{.Aggregate}}{}.Aggr)
+	{{range .Events}}
+	cqrs.RegisterEvent({{.}}Type,{{.}}{})
+	{{end}}
 }
 
 func (a {{.Aggregate}}) Aggr() *cqrs.Aggregate {
@@ -90,14 +93,14 @@ func (a {{.Aggregate}}) Aggr() *cqrs.Aggregate {
 	return aggr
 }
 
-func (a *{{.Aggregate}}) Apply(e *cqrs.Event) error {
+func (a *{{.Aggregate}}) Apply(ctx context.Context,e *cqrs.Event) error {
 	/*if !a.ReplayMode() && !a.Pending(e){
 		return a.Aggregate.Apply(e)
 	}*/
 	switch e.Type {
 	{{range .Events}}
 	case {{.}}Type:
-		if err := a.Apply{{.}}(e.Impl.(*{{.}})); err != nil {
+		if err := a.Apply{{.}}(ctx,e.Impl.(*{{.}})); err != nil {
 			return err
 		}
 	{{end}}
@@ -107,11 +110,11 @@ func (a *{{.Aggregate}}) Apply(e *cqrs.Event) error {
 	return nil
 }
 
-func (a *{{.Aggregate}}) Handle(c *cqrs.Command) error {
+func (a *{{.Aggregate}}) Handle(ctx context.Context,c *cqrs.Command) error {
 	switch c.Type{
 	{{range .Commands}}
 	case {{.}}Type:
-		return a.Handle{{.}}(c.Impl.(*{{.}}))
+		return a.Handle{{.}}(ctx,c.Impl.(*{{.}}))
 	{{end}}
 	default:
 		panic("unknown command type: "+c.Type)
@@ -119,7 +122,7 @@ func (a *{{.Aggregate}}) Handle(c *cqrs.Command) error {
 }
 
 {{range .Commands}}
-func (c {{.}}) Dispatch(id string, version int) error {
+func (c {{.}}) Dispatch(ctx context.Context, id string, version int) error {
 	if c.Command != nil {
 		return fmt.Errorf("this command has already been dispatched with id: %s",c.Command.ID)
 	}
@@ -137,11 +140,11 @@ func (c {{.}}) Dispatch(id string, version int) error {
 		Impl: &c,
 	}
 	c.Command = cmd
-	return cqrs.DispatchCommand(cmd)
+	return cqrs.DispatchCommand(ctx,cmd)
 }
 {{end}}
 {{range .Events}}
-func (e {{.}}) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
+func (e {{.}}) Apply(ctx context.Context,aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
 	event := &cqrs.Event{
 		ID:          cqrs.IDFunc(),
 		CausationID: causedBy.ID,
@@ -151,7 +154,7 @@ func (e {{.}}) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
 		Impl:         &e,
 	}
 	e.Event = event
-	return aggregate.Apply(event)
+	return aggregate.Apply(ctx,event)
 }
 {{end}}
 

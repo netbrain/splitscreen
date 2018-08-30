@@ -2,7 +2,7 @@ package todo
 
 //go:generate ss-listener
 type TodoListView struct {
-	todos []*Todo
+	Todos []*Todo
 	index map[string]int
 }
 
@@ -19,21 +19,21 @@ func NewTodoListView() *TodoListView{
 }
 
 func (t *TodoListView) OnTodoItemCreatedEvent(event *TodoItemCreatedEvent){
-	t.todos = append(t.todos,&Todo{
+	t.Todos = append(t.Todos,&Todo{
 		ID:   event.Aggregate.ID,
 		Text: event.Text,
 		Version:event.Aggregate.Version,
 	})
-	t.index[event.Aggregate.ID] = len(t.todos)-1
+	t.index[event.Aggregate.ID] = len(t.Todos)-1
 }
 
 func (t *TodoListView) OnTodoItemArchivedEvent(event *TodoItemArchivedEvent){
-	todo := t.todos[t.index[event.Aggregate.ID]]
+	todo := t.Todos[t.index[event.Aggregate.ID]]
 	todo.Text += " (archived)"
 	todo.Version = event.Aggregate.Version
 }
 
 func (t *TodoListView) OnTodoItemDeletedEvent(event *TodoItemDeletedEvent){
-	t.todos = append(t.todos[:t.index[event.Aggregate.ID]],t.todos[t.index[event.Aggregate.ID]+1:]...)
+	t.Todos = append(t.Todos[:t.index[event.Aggregate.ID]],t.Todos[t.index[event.Aggregate.ID]+1:]...)
 	delete(t.index,event.Aggregate.ID)
 }

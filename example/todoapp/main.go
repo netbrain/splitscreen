@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/netbrain/splitscreen/cqrs"
 	"github.com/netbrain/splitscreen/example/todoapp/todo"
+	"context"
 )
 
 
@@ -14,12 +15,13 @@ func main(){
 	//Register views
 	cqrs.RegisterView(todo.TodoListViewType,todo.NewTodoListView())
 
+	ctx := context.Background()
 	id := cqrs.IDFunc()
-	todo.CreateTodoCommand{Text: "New todo"}.Dispatch(id,0)
+	todo.CreateTodoCommand{Text: "New todo"}.Dispatch(ctx,id,0)
 
-	todo.ArchiveTodoCommand{}.Dispatch(id, 1)
+	todo.ArchiveTodoCommand{}.Dispatch(ctx,id, 1)
 
-	todo.DeleteTodoCommand{}.Dispatch(id,2)
+	todo.DeleteTodoCommand{}.Dispatch(ctx,id,2)
 
 }
 

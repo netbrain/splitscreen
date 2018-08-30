@@ -1,13 +1,17 @@
 package cqrs
 
+import (
+	"context"
+)
+
 type EventImpl interface{
-	Apply(*Aggregate, *Command) error
+	Apply(context.Context, *Aggregate, *Command) error
 }
 
 type EventHandlerFunc func(*Event) error
 
 type EventHandler interface {
-	Apply(*Event) error
+	Apply(context.Context, *Event) error
 }
 
 type EventType string
@@ -20,3 +24,10 @@ type Event struct {
 	Aggregate     AggregateID
 	Impl          EventImpl
 }
+
+
+
+
+
+
+

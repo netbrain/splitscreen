@@ -2,6 +2,7 @@
 package todo
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/netbrain/splitscreen/cqrs"
@@ -25,6 +26,13 @@ const (
 
 func init() {
 	cqrs.RegisterAggregate(TodoAggregateType, TodoAggregate{}.Aggr)
+
+	cqrs.RegisterEvent(TodoItemCreatedEventType, TodoItemCreatedEvent{})
+
+	cqrs.RegisterEvent(TodoItemArchivedEventType, TodoItemArchivedEvent{})
+
+	cqrs.RegisterEvent(TodoItemDeletedEventType, TodoItemDeletedEvent{})
+
 }
 
 func (a TodoAggregate) Aggr() *cqrs.Aggregate {
@@ -38,24 +46,24 @@ func (a TodoAggregate) Aggr() *cqrs.Aggregate {
 	return aggr
 }
 
-func (a *TodoAggregate) Apply(e *cqrs.Event) error {
+func (a *TodoAggregate) Apply(ctx context.Context, e *cqrs.Event) error {
 	/*if !a.ReplayMode() && !a.Pending(e){
 		return a.Aggregate.Apply(e)
 	}*/
 	switch e.Type {
 
 	case TodoItemCreatedEventType:
-		if err := a.ApplyTodoItemCreatedEvent(e.Impl.(*TodoItemCreatedEvent)); err != nil {
+		if err := a.ApplyTodoItemCreatedEvent(ctx, e.Impl.(*TodoItemCreatedEvent)); err != nil {
 			return err
 		}
 
 	case TodoItemArchivedEventType:
-		if err := a.ApplyTodoItemArchivedEvent(e.Impl.(*TodoItemArchivedEvent)); err != nil {
+		if err := a.ApplyTodoItemArchivedEvent(ctx, e.Impl.(*TodoItemArchivedEvent)); err != nil {
 			return err
 		}
 
 	case TodoItemDeletedEventType:
-		if err := a.ApplyTodoItemDeletedEvent(e.Impl.(*TodoItemDeletedEvent)); err != nil {
+		if err := a.ApplyTodoItemDeletedEvent(ctx, e.Impl.(*TodoItemDeletedEvent)); err != nil {
 			return err
 		}
 
@@ -65,24 +73,24 @@ func (a *TodoAggregate) Apply(e *cqrs.Event) error {
 	return nil
 }
 
-func (a *TodoAggregate) Handle(c *cqrs.Command) error {
+func (a *TodoAggregate) Handle(ctx context.Context, c *cqrs.Command) error {
 	switch c.Type {
 
 	case CreateTodoCommandType:
-		return a.HandleCreateTodoCommand(c.Impl.(*CreateTodoCommand))
+		return a.HandleCreateTodoCommand(ctx, c.Impl.(*CreateTodoCommand))
 
 	case ArchiveTodoCommandType:
-		return a.HandleArchiveTodoCommand(c.Impl.(*ArchiveTodoCommand))
+		return a.HandleArchiveTodoCommand(ctx, c.Impl.(*ArchiveTodoCommand))
 
 	case DeleteTodoCommandType:
-		return a.HandleDeleteTodoCommand(c.Impl.(*DeleteTodoCommand))
+		return a.HandleDeleteTodoCommand(ctx, c.Impl.(*DeleteTodoCommand))
 
 	default:
 		panic("unknown command type: " + c.Type)
 	}
 }
 
-func (c CreateTodoCommand) Dispatch(id string, version int) error {
+func (c CreateTodoCommand) Dispatch(ctx context.Context, id string, version int) error {
 	if c.Command != nil {
 		return fmt.Errorf("this command has already been dispatched with id: %s", c.Command.ID)
 	}
@@ -100,10 +108,10 @@ func (c CreateTodoCommand) Dispatch(id string, version int) error {
 		Impl: &c,
 	}
 	c.Command = cmd
-	return cqrs.DispatchCommand(cmd)
+	return cqrs.DispatchCommand(ctx, cmd)
 }
 
-func (c ArchiveTodoCommand) Dispatch(id string, version int) error {
+func (c ArchiveTodoCommand) Dispatch(ctx context.Context, id string, version int) error {
 	if c.Command != nil {
 		return fmt.Errorf("this command has already been dispatched with id: %s", c.Command.ID)
 	}
@@ -121,10 +129,10 @@ func (c ArchiveTodoCommand) Dispatch(id string, version int) error {
 		Impl: &c,
 	}
 	c.Command = cmd
-	return cqrs.DispatchCommand(cmd)
+	return cqrs.DispatchCommand(ctx, cmd)
 }
 
-func (c DeleteTodoCommand) Dispatch(id string, version int) error {
+func (c DeleteTodoCommand) Dispatch(ctx context.Context, id string, version int) error {
 	if c.Command != nil {
 		return fmt.Errorf("this command has already been dispatched with id: %s", c.Command.ID)
 	}
@@ -142,10 +150,10 @@ func (c DeleteTodoCommand) Dispatch(id string, version int) error {
 		Impl: &c,
 	}
 	c.Command = cmd
-	return cqrs.DispatchCommand(cmd)
+	return cqrs.DispatchCommand(ctx, cmd)
 }
 
-func (e TodoItemCreatedEvent) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
+func (e TodoItemCreatedEvent) Apply(ctx context.Context, aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
 	event := &cqrs.Event{
 		ID:            cqrs.IDFunc(),
 		CausationID:   causedBy.ID,
@@ -155,10 +163,10 @@ func (e TodoItemCreatedEvent) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.Co
 		Impl:          &e,
 	}
 	e.Event = event
-	return aggregate.Apply(event)
+	return aggregate.Apply(ctx, event)
 }
 
-func (e TodoItemArchivedEvent) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
+func (e TodoItemArchivedEvent) Apply(ctx context.Context, aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
 	event := &cqrs.Event{
 		ID:            cqrs.IDFunc(),
 		CausationID:   causedBy.ID,
@@ -168,10 +176,10 @@ func (e TodoItemArchivedEvent) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.C
 		Impl:          &e,
 	}
 	e.Event = event
-	return aggregate.Apply(event)
+	return aggregate.Apply(ctx, event)
 }
 
-func (e TodoItemDeletedEvent) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
+func (e TodoItemDeletedEvent) Apply(ctx context.Context, aggregate *cqrs.Aggregate, causedBy *cqrs.Command) error {
 	event := &cqrs.Event{
 		ID:            cqrs.IDFunc(),
 		CausationID:   causedBy.ID,
@@ -181,5 +189,5 @@ func (e TodoItemDeletedEvent) Apply(aggregate *cqrs.Aggregate, causedBy *cqrs.Co
 		Impl:          &e,
 	}
 	e.Event = event
-	return aggregate.Apply(event)
+	return aggregate.Apply(ctx, event)
 }

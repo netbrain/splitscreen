@@ -1,13 +1,15 @@
 package cqrs
 
+import "context"
+
 type CommandImpl interface {
-	Dispatch(string,int) error
+	Dispatch(context.Context,string,int) error
 }
 
 type CommandHandlerFunc func(*Command) error
 
 type CommandHandler interface {
-	Handle(*Command) error
+	Handle(context.Context, *Command) error
 }
 
 type CommandType string
