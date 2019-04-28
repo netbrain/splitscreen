@@ -2,40 +2,48 @@ package cqrs
 
 import (
 	"sync"
-	"fmt"
 )
 
 type EventStore interface {
-	Store(e *Event) error
-	Load(id string, typ AggregateType) []*Event
+	Store(events ...Message) error
+	Load(id string, typ AggregateType) ([]Message, error)
 }
 
 type MemoryEventStore struct {
-	events []*Event
-	mutex sync.Mutex
+	events []*RawMessage
+	mutex  sync.Mutex
 }
 
+func NewMemoryEventStore() *MemoryEventStore {
+	return &MemoryEventStore{}
+}
 
-func (m *MemoryEventStore) Store(e *Event) error {
+func (m *MemoryEventStore) Store(events ...Message) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	for _,pe := range m.events {
-		if pe.Aggregate.ID == e.Aggregate.ID && pe.Aggregate.Version == e.Aggregate.Version + 1 {
-			return fmt.Errorf("version conflict")
+	for _, event := range events {
+		rawEv, err := event.ToRawMessage()
+		if err != nil {
+			return err
 		}
+		m.events = append(m.events, rawEv)
 	}
-	m.events = append(m.events,e)
 	return nil
 }
 
-func (m *MemoryEventStore) Load(id string, typ AggregateType) []*Event {
-	var out []*Event
+func (m *MemoryEventStore) Load(id string, typ AggregateType) ([]Message, error) {
+	var out []Message
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	for _,pe := range m.events {
-		if pe.Aggregate.ID == id && pe.Aggregate.Type == typ {
-			out = append(out,pe)
+	for _, pe := range m.events {
+		if pe.Meta().AggregateID == id && pe.Meta().AggregateType == typ {
+			pe.replay = true
+			impl := GetMessage(pe.MessageType)
+			if err := pe.ToImplementation(impl); err != nil {
+				return nil, err
+			}
+			out = append(out, impl)
 		}
 	}
-	return out
+	return out, nil
 }
