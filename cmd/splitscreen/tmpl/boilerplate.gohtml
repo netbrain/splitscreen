@@ -1,0 +1,118 @@
+{{define "boilerplate"}}
+    {{template "header" .}}
+    const (
+    {{.Aggregate}}Type cqrs.AggregateType = "{{.Aggregate}}"
+    {{range .Commands}}
+        {{template "type_const" .}}
+    {{end}}
+    {{range .Events}}
+        {{template "type_const" .}}
+    {{end}}
+    )
+
+    func init(){
+        cqrs.RegisterAggregate({{.Aggregate}}Type, func() cqrs.AggregateRoot {
+            return &{{.Aggregate}}{AggregateMeta: &cqrs.AggregateMeta{}}
+        })
+
+        {{range .Events}}
+            cqrs.RegisterMessage(func() cqrs.Message {
+                return &{{.}}{
+                    MessageMeta: &cqrs.MessageMeta{
+                        AggregateMeta: &cqrs.AggregateMeta{
+                            AggregateType: {{$.Aggregate}}Type,
+                        },
+                        MessageType: {{.}}Type,
+                    },
+                }
+            })
+        {{end}}
+        {{range .Commands}}
+            cqrs.RegisterMessage(func() cqrs.Message {
+                return &{{.}}{
+                    MessageMeta: &cqrs.MessageMeta{
+                        AggregateMeta: &cqrs.AggregateMeta{
+                            AggregateType: {{$.Aggregate}}Type,
+                        },
+                        MessageType: {{.}}Type,
+                    },
+                }
+            })
+        {{end}}
+    }
+
+    func (a *{{.Aggregate}}) Meta() *cqrs.AggregateMeta {
+        return a.AggregateMeta
+    }
+
+    func (a *{{.Aggregate}}) Handle(ctx context.Context, msg cqrs.Message) (err error) {
+        if err = cqrs.LoadAggregate(ctx, msg.Meta().AggregateMeta, a); err != nil {
+            if err != cqrs.ErrMetaNotPresent {
+                return err
+            }
+            a.AggregateMeta = &cqrs.AggregateMeta{}
+            return a.Handle(ctx,msg)
+        }
+        var event cqrs.Message
+        switch msg.Meta().MessageType {
+            {{range .Commands}}
+                case {{.}}Type:
+                    m := msg.(*{{.}})
+                    event,err = a.Handle{{.}}(ctx,*m)
+                    if err != nil {
+                        return err
+                    }
+            {{end}}
+                default:
+                    return a.Apply(ctx,msg)
+        }
+        return a.Apply(ctx,event)
+    }
+
+    func (a *{{.Aggregate}}) Apply(ctx context.Context, msg cqrs.Message) error {
+        if err := cqrs.LoadAggregate(ctx, msg.Meta().AggregateMeta, a); err != nil {
+            return err
+        }
+        switch msg.Meta().MessageType {
+            {{range .Events}}
+                case {{.}}Type:
+                    m := msg.(*{{.}})
+                    if err := a.Apply{{.}}(ctx,*m); err != nil {
+                      return err
+                    }
+            {{end}}
+                default:
+                return fmt.Errorf("unknown message type")
+        }
+
+        if msg.Meta().Replayed() {
+            return nil
+        }
+        return cqrs.DispatchMessage(ctx, msg)
+    }
+
+    {{range .Commands}}
+
+        func New{{.}}Message(data {{.}}, aggregateId ...string) *{{.}} {
+            data.MessageMeta = cqrs.NewMessage({{.}}Type,aggregateId...).Meta()
+            return &data
+        }
+
+        func (e *{{.}}) Meta() *cqrs.MessageMeta {
+            return e.MessageMeta
+        }
+    {{end}}
+    {{range .Events}}
+
+        func New{{.}}Message(cause cqrs.Message,data {{.}}) *{{.}} {
+            data.MessageMeta = cqrs.NewMessage({{.}}Type,cause.Meta().AggregateID).Meta()
+            return &data
+        }
+
+        func (e *{{.}}) Meta() *cqrs.MessageMeta {
+            return e.MessageMeta
+        }
+    {{end}}
+{{end}}
+
+{{define "type_const"}}{{.}}Type cqrs.MessageType = "{{.}}"{{end}}
