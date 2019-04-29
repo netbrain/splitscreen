@@ -55,6 +55,7 @@ func RegisterView(typ ViewType, v interface{}) {
 }
 
 func GetView(typ ViewType) interface{} {
+	return app.GetView(typ)
 }
 
 func GetAggregate(typ AggregateType) AggregateRoot {
