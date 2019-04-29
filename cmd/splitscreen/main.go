@@ -33,7 +33,7 @@ type View struct {
 var action = flag.String("generate", "handler", "handler/view")
 
 func main() {
-	lookupPaths := []string{os.Getenv("SSPATH"), filepath.Join(os.Getenv("GOPATH"), "github.com", "netbrain", "splitscreen", "cmd", "ss")}
+	lookupPaths := []string{os.Getenv("SSPATH"), filepath.Join(os.Getenv("GOPATH"),"src", "github.com", "netbrain", "splitscreen", "cmd", "splitscreen")}
 	for _, path := range lookupPaths {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			if err := os.Chdir(path); err != nil {
