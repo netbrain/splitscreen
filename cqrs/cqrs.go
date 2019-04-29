@@ -2,6 +2,7 @@ package cqrs
 
 import (
 	"context"
+	"github.com/netbrain/splitscreen/cqrs/json"
 	"net/http"
 )
 
@@ -9,22 +10,32 @@ var app *CQRS
 
 func init() {
 	app = &CQRS{
+		Serializer:       json.NewSerializer(),
+		Deserializer:     json.NewDeserializer(),
 		EventStore:       NewMemoryEventStore(),
 		MessageBus:       NewLocalMessageBus(),
 		IDGenerator:      NewDefaultIDGenerator(),
 		AggregateFactory: NewAggregateFactory(),
 		MessageFactory:   NewMessageFactory(),
+		ViewRepository:   NewViewRepository(),
 	}
 	app.ChangeTracker = NewChangeTracker(app.EventStore, app.MessageBus)
 }
 
 type CQRS struct {
+	Serializer
+	Deserializer
 	EventStore
 	MessageBus
 	IDGenerator
 	*AggregateFactory
 	*MessageFactory
 	*ChangeTracker
+	*ViewRepository
+}
+
+func SetCQRS(a *CQRS) {
+	app = a
 }
 
 func Store(events ...Message) error {
@@ -37,6 +48,13 @@ func Load(id string, typ AggregateType) ([]Message, error) {
 
 func RegisterAggregate(typ AggregateType, f func() AggregateRoot) {
 	app.RegisterAggregate(typ, f)
+}
+
+func RegisterView(typ ViewType, v interface{}) {
+	app.RegisterView(typ, v)
+}
+
+func GetView(typ ViewType) interface{} {
 }
 
 func GetAggregate(typ AggregateType) AggregateRoot {
@@ -79,18 +97,10 @@ func NewContext(ctx context.Context) context.Context {
 	return app.NewContext(ctx)
 }
 
-func SetCQRS(a *CQRS) {
-	app = a
+func Serialize(src interface{}) ([]byte, error) {
+	return app.Serialize(src)
 }
 
-func NewMessage(typ MessageType, aggregateId ...string) Message {
-	var id string
-	if len(aggregateId) == 0 || aggregateId[0] == "" {
-		id = NewID()
-	} else {
-		id = aggregateId[0]
-	}
-	msg := GetMessage(typ)
-	msg.Meta().AggregateID = id
-	return msg
+func Deserialize(buf []byte, dst interface{}) error {
+	return app.Deserialize(buf, dst)
 }

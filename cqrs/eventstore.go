@@ -22,7 +22,7 @@ func (m *MemoryEventStore) Store(events ...Message) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	for _, event := range events {
-		rawEv, err := event.ToRawMessage()
+		rawEv, err := NewRawMessage(event)
 		if err != nil {
 			return err
 		}

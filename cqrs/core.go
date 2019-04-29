@@ -1,17 +1,16 @@
 package cqrs
 
 import (
-	"encoding/json"
 	"strings"
 	"time"
 )
 
-type Serializable interface {
-	Serialize() ([]byte, error)
+type Serializer interface {
+	Serialize(src interface{}) ([]byte, error)
 }
 
-type Deserializable interface {
-	Deserialize([]byte) error
+type Deserializer interface {
+	Deserialize(buf []byte, dst interface{}) error
 }
 
 type Factory func(typ MessageType) Message
@@ -39,10 +38,7 @@ func (m MessageType) IsEvent() bool {
 }
 
 type Message interface {
-	Serializable
-	Deserializable
 	Meta() *MessageMeta
-	ToRawMessage() (*RawMessage, error)
 }
 
 type RawMessage struct {
@@ -50,39 +46,40 @@ type RawMessage struct {
 	Data []byte
 }
 
-func NewRawMessage(msg Message) (*RawMessage, error) {
-	buf, err := msg.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	return &RawMessage{
-		MessageMeta: msg.Meta(),
-		Data:        buf,
-	}, nil
-}
-
 func (e *RawMessage) Meta() *MessageMeta {
 	return e.MessageMeta
 }
 
-func (e *RawMessage) ToRawMessage() (*RawMessage, error) {
-	return e, nil
-}
-
-func (e *RawMessage) Deserialize(b []byte) error {
-	return json.Unmarshal(b, e)
-}
-
-func (e *RawMessage) Serialize() ([]byte, error) {
-	return json.Marshal(e)
-}
-
 func (e *RawMessage) ToImplementation(dst Message) error {
-	err := dst.Deserialize(e.Data)
+	err := Deserialize(e.Data, dst)
 	if err != nil {
 		return err
 	}
 	m := dst.Meta()
 	*m = *e.MessageMeta
 	return nil
+}
+
+func NewMessage(typ MessageType, aggregateId ...string) Message {
+	var id string
+	if len(aggregateId) == 0 || aggregateId[0] == "" {
+		id = NewID()
+	} else {
+		id = aggregateId[0]
+	}
+	msg := GetMessage(typ)
+	msg.Meta().AggregateID = id
+	return msg
+}
+
+func NewRawMessage(msg Message) (*RawMessage, error) {
+	buf, err := Serialize(msg)
+	if err != nil {
+		return nil, err
+
+	}
+	return &RawMessage{
+		MessageMeta: msg.Meta(),
+		Data:        buf,
+	}, nil
 }
