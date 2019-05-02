@@ -4,12 +4,11 @@
 
 const {{.View}}Type cqrs.ViewType = "{{.View}}"
 
-func init(){
+func (v *{{.View}}) init(){
 {{range .Listeners}}
     cqrs.Subscribe(func(ctx context.Context, msg cqrs.Message) error {
-        return (*{{$.View}}).On{{.}}(cqrs.GetView({{$.View}}Type).(*{{$.View}}),ctx, msg.(*{{.}}))
+        return v.On{{.}}(ctx, msg.(*{{.}}))
     }, {{.}}Type)
-
 {{end}}
 }
 {{end}}
