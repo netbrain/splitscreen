@@ -18,8 +18,8 @@ func init() {
 		AggregateFactory: NewAggregateFactory(),
 		MessageFactory:   NewMessageFactory(),
 		ViewRepository:   NewViewRepository(),
+		ChangeTracker: 	  NewChangeTracker(),
 	}
-	app.ChangeTracker = NewChangeTracker(app.EventStore, app.MessageBus)
 }
 
 type CQRS struct {
@@ -35,15 +35,43 @@ type CQRS struct {
 }
 
 func SetCQRS(a *CQRS) {
+	if a.Serializer == nil {
+		a.Serializer = app.Serializer
+	}
+	if a.Deserializer == nil {
+		a.Deserializer = app.Deserializer
+	}
+	if a.EventStore == nil {
+		a.EventStore = app.EventStore
+	}
+	if a.MessageBus == nil {
+		a.MessageBus = app.MessageBus
+	}
+	if a.IDGenerator == nil {
+		a.IDGenerator = app.IDGenerator
+	}
+	if a.AggregateFactory == nil {
+		a.AggregateFactory = app.AggregateFactory
+	}
+	if a.MessageFactory == nil {
+		a.MessageFactory = app.MessageFactory
+	}
+	if a.ViewRepository == nil {
+		a.ViewRepository = app.ViewRepository
+	}
+	if a.ChangeTracker == nil {
+		a.ChangeTracker = app.ChangeTracker
+	}
 	app = a
+
 }
 
-func Store(events ...Message) error {
-	return app.Store(events...)
+func Store(ctx context.Context, events ...Message) error {
+	return app.Store(ctx, events...)
 }
 
-func Load(id string, typ AggregateType) ([]Message, error) {
-	return app.Load(id, typ)
+func Load(ctx context.Context,id string, typ AggregateType) <-chan *EventLoadResult {
+	return app.Load(ctx,id, typ)
 }
 
 func RegisterAggregate(typ AggregateType, f func() AggregateRoot) {

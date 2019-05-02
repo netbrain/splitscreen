@@ -18,7 +18,7 @@ func DispatchMessage(ctx context.Context, msg Message) error {
 }
 
 func dispatchEvent(ctx context.Context, msg Message) error {
-	if !msg.Meta().Replayed() {
+	if !msg.Meta().Replay {
 		ct := ChangeTrackerFromContext(ctx)
 		if ct == nil {
 			return fmt.Errorf("no change tracker on context")

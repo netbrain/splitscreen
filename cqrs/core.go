@@ -20,11 +20,7 @@ type MessageMeta struct {
 	MessageType MessageType `json:"type"`
 	ID          string      `json:"id"`
 	Timestamp   time.Time   `json:"timestamp"`
-	replay      bool
-}
-
-func (m *MessageMeta) Replayed() bool {
-	return m.replay
+	Replay      bool
 }
 
 type MessageType string

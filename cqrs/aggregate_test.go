@@ -33,12 +33,13 @@ func TestTrackChange(t *testing.T) {
 		t.Fatal("expected a single bus emit")
 	}
 
-	events, err := store.Load(event.Meta().AggregateID, TestAggregateType)
-	if err != nil {
-		t.Fatal(err)
-	}
+	events := store.Load(context.Background(),event.Meta().AggregateID, TestAggregateType)
 
-	if len(events) != 1 {
+	count := 0
+	for range events{
+		count++
+	}
+	if count != 1 {
 		t.Fatal("expected a single persisted event")
 	}
 }
@@ -72,12 +73,13 @@ func TestTrackChangeMiddleware(t *testing.T) {
 	}
 
 	aggregateId := recorder.Body.String()
-	events, err := store.Load(aggregateId, TestAggregateType)
-	if err != nil {
-		t.Fatal(err)
-	}
+	events := store.Load(context.Background(),aggregateId, TestAggregateType)
 
-	if len(events) != 1 {
+	count := 0
+	for range events{
+		count++
+	}
+	if count != 1 {
 		t.Fatal("expected a single persisted event")
 	}
 

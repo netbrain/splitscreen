@@ -33,17 +33,21 @@ type View struct {
 var action = flag.String("generate", "handler", "handler/view")
 
 func main() {
+	flag.Parse()
+	defFile,err := filepath.Abs(os.Getenv("GOFILE"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	lookupPaths := []string{os.Getenv("SSPATH"), filepath.Join(os.Getenv("GOPATH"),"src", "github.com", "netbrain", "splitscreen", "cmd", "splitscreen")}
-	for _, path := range lookupPaths {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			if err := os.Chdir(path); err != nil {
+	for _, p := range lookupPaths {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			if err := os.Chdir(p); err != nil {
 				log.Fatal(err)
 			}
 		}
 	}
 
-	flag.Parse()
-	defFile := os.Getenv("GOFILE")
+
 
 	switch *action {
 	case "view":

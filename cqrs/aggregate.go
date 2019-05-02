@@ -33,12 +33,12 @@ func LoadAggregate(ctx context.Context, meta *AggregateMeta, aggr AggregateRoot)
 		return nil
 	}
 
-	events, err := Load(meta.AggregateID, meta.AggregateType)
-	if err != nil {
-		return err
-	}
-	for _, e := range events {
-		if err := aggr.Handle(ctx, e); err != nil {
+	result := Load(ctx,meta.AggregateID, meta.AggregateType)
+	for e := range result {
+		if e.Err != nil {
+			return e.Err
+		}
+		if err := aggr.Handle(ctx, e.Message); err != nil {
 			return err
 		}
 	}
@@ -55,13 +55,11 @@ const (
 )
 
 type ChangeTracker struct {
-	store   EventStore
-	bus     MessageBus
 	changes []Message
 }
 
-func NewChangeTracker(store EventStore, bus MessageBus) *ChangeTracker {
-	return &ChangeTracker{store: store, bus: bus}
+func NewChangeTracker() *ChangeTracker {
+	return &ChangeTracker{}
 }
 
 func (c *ChangeTracker) TrackChange(event Message) error {
@@ -74,12 +72,12 @@ func (c *ChangeTracker) TrackChange(event Message) error {
 }
 
 func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
-	err := c.store.Store(c.changes...)
+	err := Store(ctx,c.changes...)
 	if err != nil {
 		return err
 	}
 	for _, msg := range c.changes {
-		if err := c.bus.Emit(ctx, msg); err != nil {
+		if err := Emit(ctx, msg); err != nil {
 			return err
 		}
 	}

@@ -66,6 +66,9 @@
                 default:
                     return a.Apply(ctx,msg)
         }
+        meta := event.Meta()
+        newMeta := cqrs.NewMessage(meta.MessageType,msg.Meta().AggregateID).Meta()
+        *meta = *newMeta
         return a.Apply(ctx,event)
     }
 
@@ -85,7 +88,7 @@
                 return fmt.Errorf("unknown message type")
         }
 
-        if msg.Meta().Replayed() {
+        if msg.Meta().Replay {
             return nil
         }
         return cqrs.DispatchMessage(ctx, msg)
@@ -104,8 +107,8 @@
     {{end}}
     {{range .Events}}
 
-        func New{{.}}Message(cause cqrs.Message,data {{.}}) *{{.}} {
-            data.MessageMeta = cqrs.NewMessage({{.}}Type,cause.Meta().AggregateID).Meta()
+        func New{{.}}Message(data {{.}}, aggregateId ...string) *{{.}} {
+            data.MessageMeta = cqrs.NewMessage({{.}}Type,aggregateId...).Meta()
             return &data
         }
 

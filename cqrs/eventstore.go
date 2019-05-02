@@ -1,12 +1,18 @@
 package cqrs
 
 import (
+	"context"
 	"sync"
 )
 
+type EventLoadResult struct {
+	Message Message
+	Err error
+}
+
 type EventStore interface {
-	Store(events ...Message) error
-	Load(id string, typ AggregateType) ([]Message, error)
+	Store(ctx context.Context, events ...Message) error
+	Load(ctx context.Context,id string, typ AggregateType) <-chan *EventLoadResult
 }
 
 type MemoryEventStore struct {
@@ -18,7 +24,7 @@ func NewMemoryEventStore() *MemoryEventStore {
 	return &MemoryEventStore{}
 }
 
-func (m *MemoryEventStore) Store(events ...Message) error {
+func (m *MemoryEventStore) Store(_ context.Context, events ...Message) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	for _, event := range events {
@@ -31,19 +37,28 @@ func (m *MemoryEventStore) Store(events ...Message) error {
 	return nil
 }
 
-func (m *MemoryEventStore) Load(id string, typ AggregateType) ([]Message, error) {
-	var out []Message
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	for _, pe := range m.events {
-		if pe.Meta().AggregateID == id && pe.Meta().AggregateType == typ {
-			pe.replay = true
-			impl := GetMessage(pe.MessageType)
-			if err := pe.ToImplementation(impl); err != nil {
-				return nil, err
+func (m *MemoryEventStore) Load(_ context.Context, id string, typ AggregateType) <-chan *EventLoadResult {
+	out := make(chan *EventLoadResult)
+	go func(){
+		defer close(out)
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+		for _, pe := range m.events {
+			if pe.Meta().AggregateID == id && pe.Meta().AggregateType == typ {
+				pe.Replay = true
+				impl := GetMessage(pe.MessageType)
+				if err := pe.ToImplementation(impl); err != nil {
+					out<-&EventLoadResult{
+						Err:     err,
+					}
+					return
+				}
+				out<-&EventLoadResult{
+					Message:impl,
+				}
 			}
-			out = append(out, impl)
 		}
-	}
-	return out, nil
+	}()
+	return out
+
 }
