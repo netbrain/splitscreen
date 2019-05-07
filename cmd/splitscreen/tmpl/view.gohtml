@@ -5,6 +5,7 @@
 const {{.View}}Type cqrs.ViewType = "{{.View}}"
 
 func (v *{{.View}}) init(){
+    cqrs.RegisterView({{.View}}Type, v)
 {{range .Listeners}}
     cqrs.Subscribe(func(ctx context.Context, msg cqrs.Message) error {
         return v.On{{.}}(ctx, msg.(*{{.}}))
