@@ -4,7 +4,7 @@
 
 {{define "handler_partial"}}
     {{range .Commands}}
-        func (a {{$.Aggregate}}) Handle{{.}}(ctx context.Context, cmd {{.}})  (*cqrs.RawMessage, error) {
+        func (a {{$.Aggregate}}) Handle{{.}}(ctx context.Context, cmd {{.}})  (cqrs.Message, error) {
             panic("implement me")
         }
     {{end}}

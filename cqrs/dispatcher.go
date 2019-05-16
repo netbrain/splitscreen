@@ -19,11 +19,8 @@ func DispatchMessage(ctx context.Context, msg Message) error {
 
 func dispatchEvent(ctx context.Context, msg Message) error {
 	if !msg.Meta().Replay {
-		ct := ChangeTrackerFromContext(ctx)
-		if ct == nil {
-			return fmt.Errorf("no change tracker on context")
-		}
-		if err := ct.TrackChange(msg); err != nil {
+		app := FromContext(ctx)
+		if err := app.TrackChange(msg); err != nil {
 			return err
 		}
 	}
@@ -31,9 +28,16 @@ func dispatchEvent(ctx context.Context, msg Message) error {
 }
 
 func dispatchCommand(ctx context.Context, msg Message) error {
-	aggr := GetAggregate(msg.Meta().AggregateType)
+	app := FromContext(ctx)
+	aggr := app.GetAggregate(msg.Meta().AggregateType)
 	if aggr == nil {
 		return fmt.Errorf("unknown aggregate")
+	}
+
+	if msg.Meta().AggregateID != ""{
+		if err := LoadAggregate(ctx,msg.Meta().AggregateMeta,aggr); err != nil {
+			return err
+		}
 	}
 	return aggr.Handle(ctx, msg)
 }

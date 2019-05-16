@@ -1,6 +1,7 @@
 package cqrs
 
 import (
+	"context"
 	"strings"
 	"time"
 )
@@ -46,8 +47,9 @@ func (e *RawMessage) Meta() *MessageMeta {
 	return e.MessageMeta
 }
 
-func (e *RawMessage) ToImplementation(dst Message) error {
-	err := Deserialize(e.Data, dst)
+func (e *RawMessage) ToImplementation(ctx context.Context,dst Message) error {
+	app := FromContext(ctx)
+	err := app.Deserialize(e.Data, dst)
 	if err != nil {
 		return err
 	}
@@ -56,20 +58,18 @@ func (e *RawMessage) ToImplementation(dst Message) error {
 	return nil
 }
 
-func NewMessage(typ MessageType, aggregateId ...string) Message {
-	var id string
-	if len(aggregateId) == 0 || aggregateId[0] == "" {
-		id = NewID()
-	} else {
-		id = aggregateId[0]
+func NewMessage(ctx context.Context,typ MessageType, aggregateId ...string) Message {
+	app := FromContext(ctx)
+	msg := app.GetMessage(ctx,typ)
+	if len(aggregateId) > 0 {
+		msg.Meta().AggregateID = aggregateId[0]
 	}
-	msg := GetMessage(typ)
-	msg.Meta().AggregateID = id
 	return msg
 }
 
-func NewRawMessage(msg Message) (*RawMessage, error) {
-	buf, err := Serialize(msg)
+func NewRawMessage(ctx context.Context,msg Message) (*RawMessage, error) {
+	app := FromContext(ctx)
+	buf, err := app.Serialize(msg)
 	if err != nil {
 		return nil, err
 

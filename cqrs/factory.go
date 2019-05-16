@@ -1,6 +1,7 @@
 package cqrs
 
 import (
+	"context"
 	"reflect"
 )
 
@@ -60,12 +61,13 @@ func (a *MessageFactory) RegisterMessage(fn func() Message) {
 	}
 }
 
-func (a *MessageFactory) GetMessage(typ MessageType) Message {
+func (a *MessageFactory) GetMessage(ctx context.Context,typ MessageType) Message {
+	app := FromContext(ctx)
 	if _, ok := a.fnMap[typ]; !ok {
 		return nil
 	}
 	msgInfo := a.fnMap[typ]
 	msg := msgInfo.fn()
-	msg.Meta().ID = NewID()
+	msg.Meta().ID = app.NewID()
 	return msg
 }

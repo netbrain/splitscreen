@@ -3,10 +3,11 @@ package cqrs
 import (
 	"context"
 	"fmt"
-	"net/http"
 )
 
 var ErrMetaNotPresent = fmt.Errorf("meta not initialized on aggregate")
+var ErrNoID = fmt.Errorf("no id specified on aggregate")
+var ErrNoEvents = fmt.Errorf("no events")
 
 type AggregateHandleFunc func(ctx context.Context, msg Message) error
 
@@ -33,8 +34,15 @@ func LoadAggregate(ctx context.Context, meta *AggregateMeta, aggr AggregateRoot)
 		return nil
 	}
 
-	result := Load(ctx,meta.AggregateID, meta.AggregateType)
+	if meta.AggregateID == ""{
+		return ErrNoID
+	}
+
+	app := FromContext(ctx)
+	result := app.Load(ctx,meta.AggregateID, meta.AggregateType)
+	var count int
 	for e := range result {
+		count++
 		if e.Err != nil {
 			return e.Err
 		}
@@ -43,16 +51,14 @@ func LoadAggregate(ctx context.Context, meta *AggregateMeta, aggr AggregateRoot)
 		}
 	}
 
+	if count == 0 {
+		return ErrNoEvents
+	}
+
 	*aggrMeta = *meta
 	aggrMeta.loaded = true
 	return nil
 }
-
-type contextKey int
-
-const (
-	changeTracker contextKey = iota
-)
 
 type ChangeTracker struct {
 	changes []Message
@@ -72,36 +78,16 @@ func (c *ChangeTracker) TrackChange(event Message) error {
 }
 
 func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
-	err := Store(ctx,c.changes...)
+	app := FromContext(ctx)
+	err := app.Store(ctx,c.changes...)
 	if err != nil {
 		return err
 	}
 	for _, msg := range c.changes {
-		if err := Emit(ctx, msg); err != nil {
+		if err := app.Emit(ctx, msg); err != nil {
 			return err
 		}
 	}
 	c.changes = nil
-	return nil
-}
-
-func (c *ChangeTracker) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = r.WithContext(c.NewContext(r.Context()))
-		next.ServeHTTP(w, r)
-		if err := c.CommitChanges(r.Context()); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-}
-
-func (c *ChangeTracker) NewContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, changeTracker, c)
-}
-
-func ChangeTrackerFromContext(ctx context.Context) *ChangeTracker {
-	if ct, ok := ctx.Value(changeTracker).(*ChangeTracker); ok {
-		return ct
-	}
 	return nil
 }

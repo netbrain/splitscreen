@@ -1,4 +1,5 @@
 {{define "boilerplate"}}
+    // CODE GENERATED, DO NOT MODIFY
     {{template "header" .}}
     const (
     {{.Aggregate}}Type cqrs.AggregateType = "{{.Aggregate}}"
@@ -10,13 +11,13 @@
     {{end}}
     )
 
-    func init(){
-        cqrs.RegisterAggregate({{.Aggregate}}Type, func() cqrs.AggregateRoot {
+    func (a *{{.Aggregate}}) Register(app *cqrs.App){
+        app.RegisterAggregate({{.Aggregate}}Type, func() cqrs.AggregateRoot {
             return &{{.Aggregate}}{AggregateMeta: &cqrs.AggregateMeta{}}
         })
 
         {{range .Events}}
-            cqrs.RegisterMessage(func() cqrs.Message {
+            app.RegisterMessage(func() cqrs.Message {
                 return &{{.}}{
                     MessageMeta: &cqrs.MessageMeta{
                         AggregateMeta: &cqrs.AggregateMeta{
@@ -28,7 +29,7 @@
             })
         {{end}}
         {{range .Commands}}
-            cqrs.RegisterMessage(func() cqrs.Message {
+            app.RegisterMessage(func() cqrs.Message {
                 return &{{.}}{
                     MessageMeta: &cqrs.MessageMeta{
                         AggregateMeta: &cqrs.AggregateMeta{
@@ -46,13 +47,6 @@
     }
 
     func (a *{{.Aggregate}}) Handle(ctx context.Context, msg cqrs.Message) (err error) {
-        if err = cqrs.LoadAggregate(ctx, msg.Meta().AggregateMeta, a); err != nil {
-            if err != cqrs.ErrMetaNotPresent {
-                return err
-            }
-            a.AggregateMeta = &cqrs.AggregateMeta{}
-            return a.Handle(ctx,msg)
-        }
         var event cqrs.Message
         switch msg.Meta().MessageType {
             {{range .Commands}}
@@ -67,15 +61,12 @@
                     return a.Apply(ctx,msg)
         }
         meta := event.Meta()
-        newMeta := cqrs.NewMessage(meta.MessageType,msg.Meta().AggregateID).Meta()
+        newMeta := cqrs.NewMessage(ctx,meta.MessageType,msg.Meta().AggregateID).Meta()
         *meta = *newMeta
         return a.Apply(ctx,event)
     }
 
     func (a *{{.Aggregate}}) Apply(ctx context.Context, msg cqrs.Message) error {
-        if err := cqrs.LoadAggregate(ctx, msg.Meta().AggregateMeta, a); err != nil {
-            return err
-        }
         switch msg.Meta().MessageType {
             {{range .Events}}
                 case {{.}}Type:
@@ -96,8 +87,8 @@
 
     {{range .Commands}}
 
-        func New{{.}}Message(data {{.}}, aggregateId ...string) *{{.}} {
-            data.MessageMeta = cqrs.NewMessage({{.}}Type,aggregateId...).Meta()
+        func New{{.}}Message(ctx context.Context, data {{.}}, aggregateId ...string) *{{.}} {
+            data.MessageMeta = cqrs.NewMessage(ctx,{{.}}Type,aggregateId...).Meta()
             return &data
         }
 
@@ -107,8 +98,8 @@
     {{end}}
     {{range .Events}}
 
-        func New{{.}}Message(data {{.}}, aggregateId ...string) *{{.}} {
-            data.MessageMeta = cqrs.NewMessage({{.}}Type,aggregateId...).Meta()
+        func New{{.}}Message(ctx context.Context,data {{.}}, aggregateId ...string) *{{.}} {
+            data.MessageMeta = cqrs.NewMessage(ctx,{{.}}Type,aggregateId...).Meta()
             return &data
         }
 

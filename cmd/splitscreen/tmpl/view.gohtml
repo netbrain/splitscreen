@@ -1,13 +1,13 @@
 {{define "view"}}
-
+// CODE GENERATED, DO NOT MODIFY
 {{template "header" .}}
 
 const {{.View}}Type cqrs.ViewType = "{{.View}}"
 
-func (v *{{.View}}) init(){
-    cqrs.RegisterView({{.View}}Type, v)
+func (v *{{.View}}) Register(app *cqrs.App){
+    app.RegisterView({{.View}}Type, v)
 {{range .Listeners}}
-    cqrs.Subscribe(func(ctx context.Context, msg cqrs.Message) error {
+    app.Subscribe(func(ctx context.Context, msg cqrs.Message) error {
         return v.On{{.}}(ctx, msg.(*{{.}}))
     }, {{.}}Type)
 {{end}}
