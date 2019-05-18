@@ -38,7 +38,9 @@ func dispatchCommand(ctx context.Context, msg Message) error {
 		if err := LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr); err != nil {
 			return err
 		}
+	}else{
+		msg.Meta().AggregateID = app.NewID()
 	}
-	msg.Meta().AggregateID = app.NewID()
+
 	return aggr.Handle(ctx, msg)
 }
