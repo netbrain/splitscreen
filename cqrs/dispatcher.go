@@ -34,10 +34,11 @@ func dispatchCommand(ctx context.Context, msg Message) error {
 		return fmt.Errorf("unknown aggregate")
 	}
 
-	if msg.Meta().AggregateID != ""{
-		if err := LoadAggregate(ctx,msg.Meta().AggregateMeta,aggr); err != nil {
+	if msg.Meta().AggregateID != "" {
+		if err := LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr); err != nil {
 			return err
 		}
 	}
+	msg.Meta().AggregateID = app.NewID()
 	return aggr.Handle(ctx, msg)
 }
