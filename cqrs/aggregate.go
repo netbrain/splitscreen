@@ -34,19 +34,23 @@ func LoadAggregate(ctx context.Context, meta *AggregateMeta, aggr AggregateRoot)
 		return nil
 	}
 
-	if meta.AggregateID == ""{
+	if meta.AggregateID == "" {
 		return ErrNoID
 	}
 
 	app := FromContext(ctx)
-	result := app.Load(ctx,meta.AggregateID, meta.AggregateType)
+	result := app.Load(ctx, meta.AggregateID, meta.AggregateType)
 	var count int
 	for e := range result {
 		count++
 		if e.Err != nil {
 			return e.Err
 		}
-		if err := aggr.Handle(ctx, e.Message); err != nil {
+		msgImpl := app.GetMessage(ctx, e.Message.Meta().MessageType)
+		if err := e.Message.(*RawMessage).ToImplementation(ctx, msgImpl); err != nil {
+			return err
+		}
+		if err := aggr.Handle(ctx, msgImpl); err != nil {
 			return err
 		}
 	}
@@ -79,7 +83,7 @@ func (c *ChangeTracker) TrackChange(event Message) error {
 
 func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
 	app := FromContext(ctx)
-	err := app.Store(ctx,c.changes...)
+	err := app.Store(ctx, c.changes...)
 	if err != nil {
 		return err
 	}
