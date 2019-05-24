@@ -46,11 +46,7 @@ func LoadAggregate(ctx context.Context, meta *AggregateMeta, aggr AggregateRoot)
 		if e.Err != nil {
 			return e.Err
 		}
-		msgImpl := app.GetMessage(ctx, e.Message.Meta().MessageType)
-		if err := e.Message.(*RawMessage).ToImplementation(ctx, msgImpl); err != nil {
-			return err
-		}
-		if err := aggr.Handle(ctx, msgImpl); err != nil {
+		if err := aggr.Handle(ctx, e.Message); err != nil {
 			return err
 		}
 	}
