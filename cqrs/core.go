@@ -14,6 +14,10 @@ type Deserializer interface {
 	Deserialize(buf []byte, dst interface{}) error
 }
 
+type Registerable interface {
+	Register(app *App)
+}
+
 type Factory func(typ MessageType) Message
 
 type MessageMeta struct {
@@ -47,7 +51,7 @@ func (e *RawMessage) Meta() *MessageMeta {
 	return e.MessageMeta
 }
 
-func (e *RawMessage) ToImplementation(ctx context.Context,dst Message) error {
+func (e *RawMessage) ToImplementation(ctx context.Context, dst Message) error {
 	app := FromContext(ctx)
 	err := app.Deserialize(e.Data, dst)
 	if err != nil {
@@ -58,16 +62,16 @@ func (e *RawMessage) ToImplementation(ctx context.Context,dst Message) error {
 	return nil
 }
 
-func NewMessage(ctx context.Context,typ MessageType, aggregateId ...string) Message {
+func NewMessage(ctx context.Context, typ MessageType, aggregateId ...string) Message {
 	app := FromContext(ctx)
-	msg := app.GetMessage(ctx,typ)
+	msg := app.GetMessage(ctx, typ)
 	if len(aggregateId) > 0 {
 		msg.Meta().AggregateID = aggregateId[0]
 	}
 	return msg
 }
 
-func NewRawMessage(ctx context.Context,msg Message) (*RawMessage, error) {
+func NewRawMessage(ctx context.Context, msg Message) (*RawMessage, error) {
 	app := FromContext(ctx)
 	buf, err := app.Serialize(msg)
 	if err != nil {

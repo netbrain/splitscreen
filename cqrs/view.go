@@ -2,10 +2,6 @@ package cqrs
 
 type ViewType string
 
-type View interface {
-	Register(app *App)
-}
-
 type ViewRepository struct {
 	views map[ViewType]interface{}
 }

@@ -12,9 +12,9 @@ var ErrNoEvents = fmt.Errorf("no events")
 type AggregateHandleFunc func(ctx context.Context, msg Message) error
 
 type AggregateRoot interface {
+	Registerable
 	Meta() *AggregateMeta
 	Handle(ctx context.Context, msg Message) error
-	Register(app *App)
 }
 
 type AggregateType string
