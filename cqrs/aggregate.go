@@ -14,6 +14,7 @@ type AggregateHandleFunc func(ctx context.Context, msg Message) error
 type AggregateRoot interface {
 	Meta() *AggregateMeta
 	Handle(ctx context.Context, msg Message) error
+	Register(app *App)
 }
 
 type AggregateType string
