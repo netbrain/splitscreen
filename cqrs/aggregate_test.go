@@ -18,13 +18,14 @@ func TestTrackChange(t *testing.T) {
 		return nil
 	}, TestEventType)
 
-	event := newTestEvent(ctx,TestEvent{})
-	err := app.TrackChange(event)
+	ct := ChangeTrackerFromContext(ctx)
+	event := newTestEvent(ctx, TestEvent{})
+	err := ct.TrackChange(event)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = app.CommitChanges(ctx)
+	err = ct.CommitChanges(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,10 +34,10 @@ func TestTrackChange(t *testing.T) {
 		t.Fatal("expected a single bus emit")
 	}
 
-	events := app.Load(ctx,event.Meta().AggregateID, TestAggregateType)
+	events := app.Load(ctx, event.Meta().AggregateID, TestAggregateType)
 
 	count := 0
-	for range events{
+	for range events {
 		count++
 	}
 	if count != 1 {
@@ -56,7 +57,7 @@ func TestTrackChangeMiddleware(t *testing.T) {
 	}, TestEventType)
 
 	handler := app.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		event := newTestEvent(ctx,TestEvent{&MessageMeta{}})
+		event := newTestEvent(ctx, TestEvent{&MessageMeta{}})
 		err := DispatchMessage(r.Context(), event)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -73,10 +74,10 @@ func TestTrackChangeMiddleware(t *testing.T) {
 	}
 
 	aggregateId := recorder.Body.String()
-	events := app.Load(ctx,aggregateId, TestAggregateType)
+	events := app.Load(ctx, aggregateId, TestAggregateType)
 
 	count := 0
-	for range events{
+	for range events {
 		count++
 	}
 	if count != 1 {
@@ -88,23 +89,23 @@ func TestTrackChangeMiddleware(t *testing.T) {
 func TestLoadAggregate(t *testing.T) {
 	tests := []struct {
 		name string
-		id string
-		err error
+		id   string
+		err  error
 	}{
 		{
 			name: "can load aggregate",
-			id: "1234",
-			err: nil,
+			id:   "1234",
+			err:  nil,
 		},
 		{
 			name: "cant load aggregate if empty id",
-			id: "",
-			err: ErrNoID,
+			id:   "",
+			err:  ErrNoID,
 		},
 		{
 			name: "cant load aggregate if no events present",
-			id: "4321",
-			err: ErrNoEvents,
+			id:   "4321",
+			err:  ErrNoEvents,
 		},
 	}
 
@@ -112,20 +113,20 @@ func TestLoadAggregate(t *testing.T) {
 	ctx := app.NewContext(context.Background())
 	registerTestTypes(app)
 
-	if err := app.Store(ctx,newTestEvent(ctx,TestEvent{},"1234")); err != nil {
+	if err := app.Store(ctx, newTestEvent(ctx, TestEvent{}, "1234")); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			aggr := app.GetAggregate(TestAggregateType)
-			err := LoadAggregate(ctx,&AggregateMeta{
+			err := LoadAggregate(ctx, &AggregateMeta{
 				AggregateID:   tt.id,
 				AggregateType: TestAggregateType,
-			},aggr)
+			}, aggr)
 
 			if err != tt.err {
-				t.Fatalf("err was %v, but expected %v",err,tt.err)
+				t.Fatalf("err was %v, but expected %v", err, tt.err)
 			}
 		})
 	}

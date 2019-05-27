@@ -8,7 +8,10 @@ import (
 
 type contextKey int
 
-const cqrsContextKey contextKey = 0
+const (
+	cqrsContextKey contextKey = iota
+	changeTrackerContextKey
+)
 
 type App struct {
 	Serializer
@@ -18,7 +21,6 @@ type App struct {
 	IDGenerator
 	*AggregateFactory
 	*MessageFactory
-	*ChangeTracker
 	*ViewRepository
 }
 
@@ -32,7 +34,6 @@ func New(a *App) *App {
 		AggregateFactory: NewAggregateFactory(),
 		MessageFactory:   NewMessageFactory(),
 		ViewRepository:   NewViewRepository(),
-		ChangeTracker: 	  NewChangeTracker(),
 	}
 	if a == nil {
 		return def
@@ -61,9 +62,6 @@ func New(a *App) *App {
 	if a.ViewRepository == nil {
 		a.ViewRepository = def.ViewRepository
 	}
-	if a.ChangeTracker == nil {
-		a.ChangeTracker = def.ChangeTracker
-	}
 	return a
 }
 
@@ -71,20 +69,22 @@ func (c *App) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = r.WithContext(c.NewContext(r.Context()))
 		next.ServeHTTP(w, r)
-		if err := c.CommitChanges(r.Context()); err != nil {
+
+		ct := ChangeTrackerFromContext(r.Context())
+		if err := ct.CommitChanges(r.Context()); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 }
 
 func (c *App) NewContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, cqrsContextKey, c)
+	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, NewChangeTracker()), cqrsContextKey, c)
 }
 
 func FromContext(ctx context.Context) *App {
-	/*if c, ok := ctx.Value(cqrsContextKey).(*App); ok {
-		return c
-	}
-	return nil*/
 	return ctx.Value(cqrsContextKey).(*App)
+}
+
+func ChangeTrackerFromContext(ctx context.Context) *ChangeTracker {
+	return ctx.Value(changeTrackerContextKey).(*ChangeTracker)
 }

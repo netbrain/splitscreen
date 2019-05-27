@@ -19,7 +19,7 @@ func DispatchMessage(ctx context.Context, msg Message) error {
 
 func dispatchEvent(ctx context.Context, msg Message) error {
 	if !msg.Meta().Replay {
-		app := FromContext(ctx)
+		app := ChangeTrackerFromContext(ctx)
 		if err := app.TrackChange(msg); err != nil {
 			return err
 		}
@@ -38,7 +38,7 @@ func dispatchCommand(ctx context.Context, msg Message) error {
 		if err := LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr); err != nil {
 			return err
 		}
-	}else{
+	} else {
 		msg.Meta().AggregateID = app.NewID()
 	}
 
