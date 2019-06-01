@@ -72,36 +72,5 @@ func (m *MemoryEventStore) Load(ctx context.Context, id string, typ AggregateTyp
 }
 
 func (m *MemoryEventStore) LoadAggregate(ctx context.Context, meta *AggregateMeta, dst AggregateRoot) error {
-	aggrMeta := dst.Meta()
-	if aggrMeta == nil {
-		return ErrMetaNotPresent
-	}
-
-	if aggrMeta.loaded {
-		return nil
-	}
-
-	if meta.AggregateID == "" {
-		return ErrNoID
-	}
-
-	result := m.Load(ctx, meta.AggregateID, meta.AggregateType)
-	var count int
-	for e := range result {
-		count++
-		if e.Err != nil {
-			return e.Err
-		}
-		if err := dst.Handle(ctx, e.Message); err != nil {
-			return err
-		}
-	}
-
-	if count == 0 {
-		return ErrNoEvents
-	}
-
-	*aggrMeta = *meta
-	aggrMeta.loaded = true
-	return nil
+	return LoadAggregate(ctx, m, meta, dst)
 }
