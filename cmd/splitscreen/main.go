@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -41,9 +42,9 @@ func main() {
 	}
 
 	lookupPaths := []string{os.Getenv("SSPATH"), filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "netbrain", "splitscreen", "cmd", "splitscreen")}
-	for _, path := range lookupPaths {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			if err := os.Chdir(path); err != nil {
+	for _, p := range lookupPaths {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			if err := os.Chdir(p); err != nil {
 				log.Fatal(err)
 			}
 			break
@@ -161,9 +162,9 @@ func writeBoilerplate(defFile string) (meta Handler, err error) {
 }
 
 func writeHandlers(meta Handler) error {
-	output := path.Join(path.Dir(meta.File), strings.TrimSuffix(path.Base(meta.File), path.Ext(meta.File))+"_handler_gen.go")
+	output := path.Join(path.Dir(meta.File), strings.TrimSuffix(path.Base(meta.File), path.Ext(meta.File))+"_handler.go")
 	if _, err := os.Stat(output); os.IsNotExist(err) {
-		buffer := &bytes.Buffer{}
+		buffer := bytes.NewBufferString(fmt.Sprintf(`package %s`, meta.Package))
 		tmpl := template.Must(template.ParseGlob("./tmpl/*"))
 
 		if err := tmpl.ExecuteTemplate(buffer, "handler", meta); err != nil {
@@ -227,6 +228,4 @@ func writeHandlers(meta Handler) error {
 		return err
 	}
 	return ioutil.WriteFile(output, buf, 0644)
-
-	return nil
 }

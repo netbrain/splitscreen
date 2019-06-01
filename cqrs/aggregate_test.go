@@ -19,7 +19,7 @@ func TestTrackChange(t *testing.T) {
 	}, TestEventType)
 
 	ct := ChangeTrackerFromContext(ctx)
-	event := newTestEvent(ctx, TestEvent{})
+	event := app.NewMessage(TestEventType)
 	err := ct.TrackChange(event)
 	if err != nil {
 		t.Fatal(err)
@@ -57,12 +57,12 @@ func TestTrackChangeMiddleware(t *testing.T) {
 	}, TestEventType)
 
 	handler := app.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		event := newTestEvent(ctx, TestEvent{&MessageMeta{}})
-		err := DispatchMessage(r.Context(), event)
+		event := app.NewMessage(TestEventType)
+		err := app.DispatchMessage(r.Context(), event)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		w.Write([]byte(event.Meta().AggregateID))
+		_, _ = w.Write([]byte(event.Meta().AggregateID))
 	}))
 
 	recorder := httptest.NewRecorder()
@@ -113,14 +113,14 @@ func TestLoadAggregate(t *testing.T) {
 	ctx := app.NewContext(context.Background())
 	registerTestTypes(app)
 
-	if err := app.Store(ctx, newTestEvent(ctx, TestEvent{}, "1234")); err != nil {
+	if err := app.Store(ctx, app.NewMessage(TestEventType, "1234")); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			aggr := app.GetAggregate(TestAggregateType)
-			err := LoadAggregate(ctx, &AggregateMeta{
+			err := app.LoadAggregate(ctx, &AggregateMeta{
 				AggregateID:   tt.id,
 				AggregateType: TestAggregateType,
 			}, aggr)

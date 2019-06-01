@@ -51,45 +51,45 @@
         switch msg.Meta().MessageType {
             {{range .Commands}}
                 case {{.}}Type:
-                    m := msg.(*{{.}})
-                    event,err = a.Handle{{.}}(ctx,*m)
-                    if err != nil {
-                        return err
-                    }
+                    event,err = a.Handle{{.}}(ctx,*msg.(*{{.}}))
             {{end}}
                 default:
                     return a.Apply(ctx,msg)
         }
+        if err != nil {
+            return err
+        }
         meta := event.Meta()
-        newMeta := cqrs.NewMessage(ctx,meta.MessageType,msg.Meta().AggregateID).Meta()
+        newMeta := cqrs.FromContext(ctx).NewMessage(meta.MessageType,msg.Meta().AggregateID).Meta()
         *meta = *newMeta
         return a.Apply(ctx,event)
     }
 
-    func (a *{{.Aggregate}}) Apply(ctx context.Context, msg cqrs.Message) error {
+    func (a *{{.Aggregate}}) Apply(ctx context.Context, msg cqrs.Message) (err error) {
         switch msg.Meta().MessageType {
             {{range .Events}}
                 case {{.}}Type:
-                    m := msg.(*{{.}})
-                    if err := a.Apply{{.}}(ctx,*m); err != nil {
-                      return err
-                    }
+                    err = a.Apply{{.}}(ctx,*msg.(*{{.}}))
             {{end}}
                 default:
                 return fmt.Errorf("unknown message type")
         }
 
+        if err != nil {
+            return err
+        }
+
         if msg.Meta().Replay {
             return nil
         }
-        return cqrs.DispatchMessage(ctx, msg)
+        return cqrs.FromContext(ctx).DispatchMessage(ctx, msg)
     }
 
     {{range .Commands}}
 
         func New{{.}}Message(ctx context.Context, data {{.}}, aggregateId ...string) *{{.}} {
-            data.MessageMeta = cqrs.NewMessage(ctx,{{.}}Type,aggregateId...).Meta()
-            return &data
+        data.MessageMeta = cqrs.FromContext(ctx).NewMessage({{.}}Type,aggregateId...).Meta()
+        return &data
         }
 
         func (e *{{.}}) Meta() *cqrs.MessageMeta {
@@ -99,7 +99,7 @@
     {{range .Events}}
 
         func New{{.}}Message(ctx context.Context,data {{.}}, aggregateId ...string) *{{.}} {
-            data.MessageMeta = cqrs.NewMessage(ctx,{{.}}Type,aggregateId...).Meta()
+            data.MessageMeta = cqrs.FromContext(ctx).NewMessage({{.}}Type,aggregateId...).Meta()
             return &data
         }
 

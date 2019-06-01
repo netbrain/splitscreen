@@ -1,10 +1,14 @@
 package cqrs
 
 import (
-	"context"
+	"fmt"
 	"strings"
 	"time"
 )
+
+var ErrMetaNotPresent = fmt.Errorf("meta not initialized on aggregate")
+var ErrNoID = fmt.Errorf("no id specified on aggregate")
+var ErrNoEvents = fmt.Errorf("no events")
 
 type Serializer interface {
 	Serialize(src interface{}) ([]byte, error)
@@ -51,9 +55,8 @@ func (e *RawMessage) Meta() *MessageMeta {
 	return e.MessageMeta
 }
 
-func (e *RawMessage) ToImplementation(ctx context.Context, dst Message) error {
-	app := FromContext(ctx)
-	err := app.Deserialize(e.Data, dst)
+func (e *RawMessage) ToImplementation(d Deserializer, dst Message) error {
+	err := d.Deserialize(e.Data, dst)
 	if err != nil {
 		return err
 	}
@@ -62,24 +65,10 @@ func (e *RawMessage) ToImplementation(ctx context.Context, dst Message) error {
 	return nil
 }
 
-func NewMessage(ctx context.Context, typ MessageType, aggregateId ...string) Message {
-	app := FromContext(ctx)
-	msg := app.GetMessage(ctx, typ)
-	if len(aggregateId) > 0 {
-		msg.Meta().AggregateID = aggregateId[0]
-	}
-	return msg
-}
-
-func NewRawMessage(ctx context.Context, msg Message) (*RawMessage, error) {
-	app := FromContext(ctx)
-	buf, err := app.Serialize(msg)
-	if err != nil {
-		return nil, err
-
-	}
+func NewRawMessage(s Serializer, m Message) (*RawMessage, error) {
+	data, err := s.Serialize(m)
 	return &RawMessage{
-		MessageMeta: msg.Meta(),
-		Data:        buf,
-	}, nil
+		MessageMeta: m.Meta(),
+		Data:        data,
+	}, err
 }

@@ -16,24 +16,31 @@ const (
 type App struct {
 	Serializer
 	Deserializer
+	Dispatcher
 	EventStore
 	MessageBus
 	IDGenerator
-	*AggregateFactory
-	*MessageFactory
+	AggregateFactory
+	MessageFactory
 	*ViewRepository
 }
 
 func New(a *App) *App {
+	idGen := NewDefaultIDGenerator()
+	serializer, deserializer := json.New()
+	aggregateFactory := NewDefaultAggregateFactory()
+	messageFactory := NewDefaultMessageFactory(idGen)
+	eventStore := NewMemoryEventStore(serializer, deserializer, messageFactory)
 	def := &App{
-		Serializer:       json.NewSerializer(),
-		Deserializer:     json.NewDeserializer(),
-		EventStore:       NewMemoryEventStore(),
+		Serializer:       serializer,
+		Deserializer:     deserializer,
+		EventStore:       eventStore,
 		MessageBus:       NewLocalMessageBus(),
-		IDGenerator:      NewDefaultIDGenerator(),
-		AggregateFactory: NewAggregateFactory(),
-		MessageFactory:   NewMessageFactory(),
+		IDGenerator:      idGen,
+		AggregateFactory: aggregateFactory,
+		MessageFactory:   messageFactory,
 		ViewRepository:   NewViewRepository(),
+		Dispatcher:       NewDefaultDispatcher(aggregateFactory, eventStore, idGen),
 	}
 	if a == nil {
 		return def
@@ -62,12 +69,15 @@ func New(a *App) *App {
 	if a.ViewRepository == nil {
 		a.ViewRepository = def.ViewRepository
 	}
+	if a.Dispatcher == nil {
+		a.Dispatcher = def.Dispatcher
+	}
 	return a
 }
 
-func (c *App) Middleware(next http.Handler) http.Handler {
+func (a *App) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = r.WithContext(c.NewContext(r.Context()))
+		r = r.WithContext(a.NewContext(r.Context()))
 		next.ServeHTTP(w, r)
 
 		ct := ChangeTrackerFromContext(r.Context())
@@ -77,8 +87,8 @@ func (c *App) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func (c *App) NewContext(ctx context.Context) context.Context {
-	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, NewChangeTracker()), cqrsContextKey, c)
+func (a *App) NewContext(ctx context.Context) context.Context {
+	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, NewChangeTracker(a)), cqrsContextKey, a)
 }
 
 func FromContext(ctx context.Context) *App {
@@ -87,4 +97,15 @@ func FromContext(ctx context.Context) *App {
 
 func ChangeTrackerFromContext(ctx context.Context) *ChangeTracker {
 	return ctx.Value(changeTrackerContextKey).(*ChangeTracker)
+}
+
+func Handle(ctx context.Context, msg Message) error {
+	app := FromContext(ctx)
+	aggr := app.GetAggregate(msg.Meta().AggregateType)
+	err := app.LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr)
+	if err != nil {
+		return err
+	}
+
+	return aggr.Handle(ctx, msg)
 }
