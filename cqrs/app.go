@@ -2,6 +2,7 @@ package cqrs
 
 import (
 	"context"
+	"fmt"
 	"github.com/netbrain/splitscreen/cqrs/json"
 	"net/http"
 )
@@ -13,10 +14,13 @@ const (
 	changeTrackerContextKey
 )
 
+type Dispatcher interface {
+	DispatchMessage(ctx context.Context, msg Message) error
+}
+
 type App struct {
 	Serializer
 	Deserializer
-	Dispatcher
 	EventStore
 	MessageBus
 	IDGenerator
@@ -40,7 +44,6 @@ func New(a *App) *App {
 		AggregateFactory: aggregateFactory,
 		MessageFactory:   messageFactory,
 		ViewRepository:   NewViewRepository(),
-		Dispatcher:       NewDefaultDispatcher(aggregateFactory, eventStore, idGen),
 	}
 	if a == nil {
 		return def
@@ -69,9 +72,6 @@ func New(a *App) *App {
 	if a.ViewRepository == nil {
 		a.ViewRepository = def.ViewRepository
 	}
-	if a.Dispatcher == nil {
-		a.Dispatcher = def.Dispatcher
-	}
 	return a
 }
 
@@ -89,6 +89,45 @@ func (a *App) Middleware(next http.Handler) http.Handler {
 
 func (a *App) NewContext(ctx context.Context) context.Context {
 	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, NewChangeTracker(a)), cqrsContextKey, a)
+}
+
+func (a *App) DispatchMessage(ctx context.Context, msg Message) error {
+	if msg.Meta().MessageType.IsEvent() {
+		return a.dispatchEvent(ctx, msg)
+	}
+
+	if msg.Meta().MessageType.IsCommand() {
+		return a.dispatchCommand(ctx, msg)
+	}
+
+	return fmt.Errorf("unknown instance type")
+}
+
+func (a *App) dispatchEvent(ctx context.Context, msg Message) error {
+	if !msg.Meta().Replay {
+		changeTracker := ChangeTrackerFromContext(ctx)
+		if err := changeTracker.TrackChange(msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *App) dispatchCommand(ctx context.Context, msg Message) error {
+	aggr := a.GetAggregate(msg.Meta().AggregateType)
+	if aggr == nil {
+		return fmt.Errorf("unknown aggregate")
+	}
+
+	if msg.Meta().AggregateID != "" {
+		if err := a.LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr); err != nil {
+			return err
+		}
+	} else {
+		msg.Meta().AggregateID = a.NewID()
+	}
+
+	return aggr.Handle(ctx, msg)
 }
 
 func FromContext(ctx context.Context) *App {
