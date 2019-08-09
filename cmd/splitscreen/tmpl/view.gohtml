@@ -2,14 +2,19 @@
 // CODE GENERATED, DO NOT MODIFY
 {{template "header" .}}
 
+import (
+{{range .Imports}}
+    {{.Alias}} "{{.Path}}"
+{{end}}
+)
 const {{.View}}Type cqrs.ViewType = "{{.View}}"
 
 func (v *{{.View}}) Register(app *cqrs.App){
     app.RegisterView({{.View}}Type, v)
 {{range .Listeners}}
     app.Subscribe(func(ctx context.Context, msg cqrs.Message) error {
-        return v.On{{.}}(ctx, msg.(*{{.}}))
-    }, {{.}}Type)
+        return v.On{{.Name}}(ctx, msg.(*{{.Pkg}}.{{.Name}}))
+    }, {{.Pkg}}.{{.Name}}Type)
 {{end}}
 }
 {{end}}

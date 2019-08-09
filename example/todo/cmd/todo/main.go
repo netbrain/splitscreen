@@ -4,15 +4,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/netbrain/splitscreen/cqrs"
-	"github.com/netbrain/splitscreen/example/todo"
+	"github.com/netbrain/splitscreen/example/todo/domain/todo"
+	"github.com/netbrain/splitscreen/example/todo/view"
 )
 
 func main() {
 	// bootstrap application
 	app := cqrs.New(nil)
+
+	// views
+	todos := view.NewTodoView()
+
+	// register aggregates & views
 	for _, r := range []cqrs.Registerable{
-		&todo.TodoAggregate{},
-		todo.NewTodoView(),
+		&todo.Aggregate{},
+		todos,
 	} {
 		r.Register(app)
 	}
@@ -32,7 +38,7 @@ func main() {
 	ctx := app.NewContext(context.Background())
 
 	// dispatch command message
-	err := app.DispatchMessage(ctx, todo.NewCreateTodoCommandMessage(ctx, todo.CreateTodoCommand{
+	err := app.DispatchMessage(ctx, todo.NewCreateCommandMessage(ctx, todo.CreateCommand{
 		Data: "Hello\nWorld",
 	}))
 	if err != nil {
@@ -47,8 +53,7 @@ func main() {
 	}
 
 	// print view
-	todoView := app.GetView(todo.TodoViewType).(*todo.TodoView) // could also just reference todo.NewTodoView()
-	for _, t := range todoView.Todos() {
+	for _, t := range todos.All() {
 		fmt.Printf("\n-- %s --\n%s\ncompleted=%v", t.Title, t.Content, t.Done)
 	}
 

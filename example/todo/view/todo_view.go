@@ -1,10 +1,13 @@
-//go:generate splitscreen -generate view
+//go:generate sh -c "SSPATH=$PWD/../../../cmd/splitscreen go run ../../../cmd/splitscreen/main.go -generate view"
 
-package todo
+// ALL OTHER MORTALS SHOULD USE go:generate splitscreen -generate view
+
+package view
 
 import (
 	"context"
 	"fmt"
+	"github.com/netbrain/splitscreen/example/todo/domain/todo"
 )
 
 type Todo struct {
@@ -23,14 +26,14 @@ func NewTodoView() *TodoView {
 	}
 }
 
-func (v *TodoView) Todos() (todos []*Todo) {
+func (v *TodoView) All() (todos []*Todo) {
 	for _, todo := range v.todos {
 		todos = append(todos, todo)
 	}
 	return
 }
 
-func (v *TodoView) OnTodoCreatedEvent(ctx context.Context, event *TodoCreatedEvent) error {
+func (v *TodoView) OnCreatedEvent(ctx context.Context, event todo.CreatedEvent) error {
 	v.todos[event.AggregateID] = &Todo{
 		Title:   event.Title,
 		Content: event.Content,
@@ -38,7 +41,7 @@ func (v *TodoView) OnTodoCreatedEvent(ctx context.Context, event *TodoCreatedEve
 	return nil
 }
 
-func (v *TodoView) OnTodoEditedEvent(ctx context.Context, event *TodoEditedEvent) error {
+func (v *TodoView) OnEditedEvent(ctx context.Context, event *todo.EditedEvent) error {
 	todo, ok := v.todos[event.AggregateID]
 	if !ok {
 		return fmt.Errorf("no such todo")
@@ -48,7 +51,7 @@ func (v *TodoView) OnTodoEditedEvent(ctx context.Context, event *TodoEditedEvent
 	return nil
 }
 
-func (v *TodoView) OnTodoCompletedEvent(ctx context.Context, event *TodoCompletedEvent) error {
+func (v *TodoView) OnCompletedEvent(ctx context.Context, event todo.CompletedEvent) error {
 	todo, ok := v.todos[event.AggregateID]
 	if !ok {
 		return fmt.Errorf("no such todo")

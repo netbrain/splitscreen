@@ -1,4 +1,4 @@
-//go:generate sh -c "SSPATH=$PWD/../../cmd/splitscreen go run ../../cmd/splitscreen/main.go -generate handler"
+//go:generate sh -c "SSPATH=$PWD/../../../../cmd/splitscreen go run ../../../../cmd/splitscreen/main.go -generate handler"
 
 // ALL OTHER MORTALS SHOULD USE go:generate splitscreen -generate handler
 
@@ -6,37 +6,37 @@ package todo
 
 import "github.com/netbrain/splitscreen/cqrs"
 
-type CreateTodoCommand struct {
+type CreateCommand struct {
 	*cqrs.MessageMeta
 	Data string `json:"data"`
 }
 
-type TodoCreatedEvent struct {
+type CreatedEvent struct {
 	*cqrs.MessageMeta
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
 
-type EditTodoCommand struct {
+type EditCommand struct {
 	*cqrs.MessageMeta
 	Data string `json:"data"`
 }
 
-type TodoEditedEvent struct {
+type EditedEvent struct {
 	*cqrs.MessageMeta
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
 
-type CompleteTodoCommand struct {
+type CompleteCommand struct {
 	*cqrs.MessageMeta
 }
 
-type TodoCompletedEvent struct {
+type CompletedEvent struct {
 	*cqrs.MessageMeta
 }
 
-type TodoAggregate struct {
+type Aggregate struct {
 	*cqrs.AggregateMeta
 	Title   string `json:"title"`
 	Content string `json:"content"`

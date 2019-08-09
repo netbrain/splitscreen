@@ -2,12 +2,12 @@
     // CODE GENERATED, DO NOT MODIFY
     {{template "header" .}}
     const (
-    {{.Aggregate}}Type cqrs.AggregateType = "{{.Aggregate}}"
+    {{.Aggregate}}Type cqrs.AggregateType = "{{.Package}}.{{.Aggregate}}"
     {{range .Commands}}
-        {{template "type_const" .}}
+        {{.}}Type cqrs.MessageType = "{{$.Package}}.{{.}}"
     {{end}}
     {{range .Events}}
-        {{template "type_const" .}}
+        {{.}}Type cqrs.MessageType = "{{$.Package}}.{{.}}"
     {{end}}
     )
 
@@ -108,5 +108,3 @@
         }
     {{end}}
 {{end}}
-
-{{define "type_const"}}{{.}}Type cqrs.MessageType = "{{.}}"{{end}}

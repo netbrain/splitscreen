@@ -25,13 +25,28 @@ type Handler struct {
 	Commands  []string
 }
 
+type Type struct {
+	Pkg  string
+	Name string
+}
+
+type Import struct {
+	Alias string
+	Path string
+}
+
 type View struct {
+	Imports []Import
 	Package   string
 	View      string
-	Listeners []string
+	Listeners []Type
 }
 
 var action = flag.String("generate", "handler", "handler/view")
+
+func init(){
+	log.SetFlags(log.LstdFlags|log.Lshortfile)
+}
 
 func main() {
 	flag.Parse()
@@ -88,6 +103,22 @@ func writeView(defFile string) error {
 	meta.Package = f.Name.Name
 
 	ast.Inspect(f, func(n ast.Node) bool {
+		imp,ok := n.(*ast.ImportSpec)
+		if ok {
+			var alias string
+			path := strings.Trim(imp.Path.Value,`"`)
+			if imp.Name != nil && imp.Name.Name != "." {
+				alias = imp.Name.Name
+			}else {
+				parts := strings.Split(path,"/")
+				alias = parts[len(parts)-1]
+			}
+			meta.Imports = append(meta.Imports,Import{
+				Alias: alias,
+				Path:  path,
+			})
+		}
+
 		typ, ok := n.(*ast.TypeSpec)
 		if ok {
 			if strings.HasSuffix(typ.Name.Name, "View") {
@@ -98,7 +129,28 @@ func writeView(defFile string) error {
 		fn, ok := n.(*ast.FuncDecl)
 		if ok {
 			if strings.HasPrefix(fn.Name.Name, "On") {
-				meta.Listeners = append(meta.Listeners, fn.Name.Name[len("On"):])
+				for _, f := range fn.Type.Params.List {
+					ptr, ok := f.Type.(*ast.StarExpr)
+					if !ok {
+						continue
+					}
+					selc, ok := ptr.X.(*ast.SelectorExpr)
+					if !ok {
+						continue
+					}
+					pkgIdent,ok := selc.X.(*ast.Ident)
+					if !ok {
+						continue
+					}
+
+					event := selc.Sel.Name
+					pkg := pkgIdent.Name
+
+					meta.Listeners = append(meta.Listeners, Type{
+						Pkg:  pkg,
+						Name: event,
+					})
+				}
 			}
 		}
 		return true
@@ -113,7 +165,8 @@ func writeView(defFile string) error {
 	output := path.Join(path.Dir(defFile), strings.TrimSuffix(path.Base(defFile), path.Ext(defFile))+"_gen.go")
 	buf, err := imports.Process(output, buffer.Bytes(), nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(buffer.String())
+		return err
 	}
 	return ioutil.WriteFile(output, buf, 0644)
 }
@@ -145,6 +198,12 @@ func writeBoilerplate(defFile string) (meta Handler, err error) {
 		}
 		return true
 	})
+
+	if meta.Aggregate == "" || len(meta.Commands) == 0 && len(meta.Events) == 0 {
+		err = fmt.Errorf("missing aggregate or event/command definition(s)")
+		return
+	}
+
 	tmpl := template.Must(template.ParseGlob("./tmpl/*"))
 
 	buffer := &bytes.Buffer{}
@@ -152,9 +211,11 @@ func writeBoilerplate(defFile string) (meta Handler, err error) {
 	if err != nil {
 		return
 	}
+
 	output := path.Join(path.Dir(defFile), strings.TrimSuffix(path.Base(defFile), path.Ext(defFile))+"_gen.go")
 	buf, err := imports.Process(output, buffer.Bytes(), nil)
 	if err != nil {
+		log.Println(buffer.String())
 		return
 	}
 	err = ioutil.WriteFile(output, buf, 0644)
