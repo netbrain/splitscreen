@@ -34,6 +34,20 @@ type MessageMeta struct {
 	Data        map[string]interface{} `json:"data"`
 }
 
+func (m *MessageMeta) Set(key string, value interface{}) {
+	if m.Data == nil {
+		m.Data = map[string]interface{}{}
+	}
+	m.Data[key] = value
+}
+
+func (m *MessageMeta) Get(key string) interface{} {
+	if m.Data == nil {
+		return nil
+	}
+	return m.Data[key]
+}
+
 type MessageType string
 
 func (m MessageType) IsCommand() bool {
