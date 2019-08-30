@@ -26,17 +26,16 @@ func (c *ChangeTracker) TrackChange(event Message) error {
 }
 
 func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
-	err := c.app.Store(ctx, c.changes...)
-	if err != nil {
-		return err
-	}
 	for {
-		if len(c.changes) == 0 {
+		changes := c.changes
+		if changes == nil {
 			return nil
 		}
-		msg := c.changes[0]
-		c.changes = c.changes[1:]
-		if err := c.app.Emit(ctx, msg); err != nil {
+		c.changes = nil
+		if err := c.app.Store(ctx, changes...); err != nil {
+			return err
+		}
+		if err := c.app.Emit(ctx, changes...); err != nil {
 			return err
 		}
 	}
