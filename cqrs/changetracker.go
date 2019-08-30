@@ -30,11 +30,14 @@ func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, msg := range c.changes {
+	for {
+		if len(c.changes) == 0 {
+			return nil
+		}
+		msg := c.changes[0]
+		c.changes = c.changes[1:]
 		if err := c.app.Emit(ctx, msg); err != nil {
 			return err
 		}
 	}
-	c.changes = nil
-	return nil
 }
