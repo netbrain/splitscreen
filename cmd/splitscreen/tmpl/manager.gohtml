@@ -1,4 +1,4 @@
-{{define "view"}}
+{{define "manager"}}
 // CODE GENERATED, DO NOT MODIFY
 {{template "header" .}}
 
@@ -7,14 +7,14 @@ import (
     {{.Alias}} "{{.Path}}"
 {{end}}
 )
-const {{.View}}Type cqrs.ViewType = "{{.View}}"
+const {{.Manager}}Type cqrs.ManagerType = "{{.Manager}}"
 
-func (v *{{.View}}) Register(app *cqrs.App){
-    app.RegisterView({{.View}}Type, v)
+func (v *{{.Manager}}) Register(app *cqrs.App){
+    app.RegisterManager({{.Manager}}Type, v)
 {{range .Listeners}}
     app.Subscribe(func(ctx context.Context, msg cqrs.Message) error {
         return v.On{{.Name}}(ctx, msg.(*{{.Pkg}}.{{.Name}}))
-    }, cqrs.ViewSubscription, {{.Pkg}}.{{.Name}}Type)
+    }, cqrs.ManagerSubscription, {{.Pkg}}.{{.Name}}Type)
 {{end}}
 }
 {{end}}

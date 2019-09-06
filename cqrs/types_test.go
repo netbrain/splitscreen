@@ -40,6 +40,11 @@ func (t *TestEvent) Meta() *MessageMeta {
 	return t.MessageMeta
 }
 
+func NewTestEventMessage(ctx context.Context, data TestEvent, aggregateId ...string) *TestEvent {
+	data.MessageMeta = FromContext(ctx).NewMessage(TestEventType, aggregateId...).Meta()
+	return &data
+}
+
 func registerTestTypes(cqrs *App) {
 	cqrs.RegisterAggregate(TestAggregateType, func() AggregateRoot {
 		return &TestAggregate{

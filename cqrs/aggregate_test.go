@@ -16,7 +16,7 @@ func TestTrackChange(t *testing.T) {
 	app.Subscribe(func(ctx context.Context, msg Message) error {
 		emits++
 		return nil
-	}, TestEventType)
+	}, ViewSubscription ,TestEventType)
 
 	ct := ChangeTrackerFromContext(ctx)
 	event := app.NewMessage(TestEventType)
@@ -54,7 +54,7 @@ func TestTrackChangeMiddleware(t *testing.T) {
 	app.Subscribe(func(ctx context.Context, msg Message) error {
 		emits++
 		return nil
-	}, TestEventType)
+	}, ViewSubscription, TestEventType)
 
 	handler := app.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		event := app.NewMessage(TestEventType)

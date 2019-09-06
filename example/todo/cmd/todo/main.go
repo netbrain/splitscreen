@@ -32,7 +32,7 @@ func main() {
 			fmt.Printf("%s\n", data)
 		}
 		return nil
-	})
+	},cqrs.ViewSubscription)
 
 	// create a new context
 	ctx := app.NewContext(context.Background())

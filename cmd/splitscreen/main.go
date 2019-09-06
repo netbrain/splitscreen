@@ -42,7 +42,14 @@ type View struct {
 	Listeners []Type
 }
 
-var action = flag.String("generate", "handler", "handler/view")
+type Manager struct{
+	Imports []Import
+	Package   string
+	Manager   string
+	Listeners []Type
+}
+
+var action = flag.String("generate", "handler", "handler/view/manager")
 
 func init(){
 	log.SetFlags(log.LstdFlags|log.Lshortfile)
@@ -79,6 +86,11 @@ func main() {
 		}
 
 		err = writeHandlers(meta)
+		if err != nil {
+			log.Fatal(err)
+		}
+	case "manager":
+		err := writeManager(defFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -159,6 +171,89 @@ func writeView(defFile string) error {
 	tmpl := template.Must(template.ParseGlob("./tmpl/*"))
 	buffer := &bytes.Buffer{}
 	err = tmpl.ExecuteTemplate(buffer, "view", &meta)
+	if err != nil {
+		return err
+	}
+	output := path.Join(path.Dir(defFile), strings.TrimSuffix(path.Base(defFile), path.Ext(defFile))+"_gen.go")
+	buf, err := imports.Process(output, buffer.Bytes(), nil)
+	if err != nil {
+		log.Println(buffer.String())
+		return err
+	}
+	return ioutil.WriteFile(output, buf, 0644)
+}
+
+func writeManager(defFile string) error {
+	fset := token.NewFileSet()
+	src, err := ioutil.ReadFile(defFile)
+	if err != nil {
+		return err
+	}
+	f, err := parser.ParseFile(fset, defFile, src, 0)
+	if err != nil {
+		return err
+	}
+
+	meta := Manager{}
+	meta.Package = f.Name.Name
+
+	ast.Inspect(f, func(n ast.Node) bool {
+		imp,ok := n.(*ast.ImportSpec)
+		if ok {
+			var alias string
+			path := strings.Trim(imp.Path.Value,`"`)
+			if imp.Name != nil && imp.Name.Name != "." {
+				alias = imp.Name.Name
+			}else {
+				parts := strings.Split(path,"/")
+				alias = parts[len(parts)-1]
+			}
+			meta.Imports = append(meta.Imports,Import{
+				Alias: alias,
+				Path:  path,
+			})
+		}
+
+		typ, ok := n.(*ast.TypeSpec)
+		if ok {
+			if strings.HasSuffix(typ.Name.Name, "Manager") {
+				meta.Manager = typ.Name.Name
+			}
+		}
+
+		fn, ok := n.(*ast.FuncDecl)
+		if ok {
+			if strings.HasPrefix(fn.Name.Name, "On") {
+				for _, f := range fn.Type.Params.List {
+					ptr, ok := f.Type.(*ast.StarExpr)
+					if !ok {
+						continue
+					}
+					selc, ok := ptr.X.(*ast.SelectorExpr)
+					if !ok {
+						continue
+					}
+					pkgIdent,ok := selc.X.(*ast.Ident)
+					if !ok {
+						continue
+					}
+
+					event := selc.Sel.Name
+					pkg := pkgIdent.Name
+
+					meta.Listeners = append(meta.Listeners, Type{
+						Pkg:  pkg,
+						Name: event,
+					})
+				}
+			}
+		}
+		return true
+	})
+
+	tmpl := template.Must(template.ParseGlob("./tmpl/*"))
+	buffer := &bytes.Buffer{}
+	err = tmpl.ExecuteTemplate(buffer, "manager", &meta)
 	if err != nil {
 		return err
 	}

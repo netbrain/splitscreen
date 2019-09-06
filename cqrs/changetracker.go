@@ -20,23 +20,21 @@ func (c *ChangeTracker) TrackChange(event Message) error {
 	if !event.Meta().MessageType.IsEvent() {
 		return fmt.Errorf("expected event")
 	}
-
 	c.changes = append(c.changes, event)
 	return nil
 }
 
 func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
-	for {
-		changes := c.changes
-		if changes == nil {
-			return nil
-		}
-		c.changes = nil
-		if err := c.app.Store(ctx, changes...); err != nil {
-			return err
-		}
-		if err := c.app.Emit(ctx, changes...); err != nil {
+	for i := 0; i < len(c.changes); i++ {
+		if err := c.app.Manage(ctx, c.changes[i]); err != nil {
 			return err
 		}
 	}
+	if err := c.app.Store(ctx, c.changes...); err != nil {
+		return err
+	}
+	if err := c.app.Emit(ctx, c.changes...); err != nil {
+		return err
+	}
+	return nil
 }

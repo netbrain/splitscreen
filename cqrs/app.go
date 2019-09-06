@@ -27,6 +27,7 @@ type App struct {
 	AggregateFactory
 	MessageFactory
 	*ViewRepository
+	*ManagerRepository
 }
 
 func New(a *App) *App {
@@ -44,6 +45,7 @@ func New(a *App) *App {
 		AggregateFactory: aggregateFactory,
 		MessageFactory:   messageFactory,
 		ViewRepository:   NewViewRepository(),
+		ManagerRepository: NewManagerRepository(),
 	}
 	if a == nil {
 		return def
@@ -71,6 +73,9 @@ func New(a *App) *App {
 	}
 	if a.ViewRepository == nil {
 		a.ViewRepository = def.ViewRepository
+	}
+	if a.ManagerRepository == nil {
+		a.ManagerRepository = def.ManagerRepository
 	}
 	return a
 }

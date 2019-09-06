@@ -33,7 +33,7 @@ func (v *TodoView) All() (todos []*Todo) {
 	return
 }
 
-func (v *TodoView) OnCreatedEvent(ctx context.Context, event todo.CreatedEvent) error {
+func (v *TodoView) OnCreatedEvent(ctx context.Context, event *todo.CreatedEvent) error {
 	v.todos[event.AggregateID] = &Todo{
 		Title:   event.Title,
 		Content: event.Content,
@@ -51,7 +51,7 @@ func (v *TodoView) OnEditedEvent(ctx context.Context, event *todo.EditedEvent) e
 	return nil
 }
 
-func (v *TodoView) OnCompletedEvent(ctx context.Context, event todo.CompletedEvent) error {
+func (v *TodoView) OnCompletedEvent(ctx context.Context, event *todo.CompletedEvent) error {
 	todo, ok := v.todos[event.AggregateID]
 	if !ok {
 		return fmt.Errorf("no such todo")
