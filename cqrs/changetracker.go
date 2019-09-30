@@ -36,5 +36,6 @@ func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
 	if err := c.app.Emit(ctx, c.changes...); err != nil {
 		return err
 	}
+	c.changes = nil
 	return nil
 }
