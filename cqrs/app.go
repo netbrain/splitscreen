@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/netbrain/splitscreen/cqrs/json"
+	"log"
 	"net/http"
 )
 
@@ -83,11 +84,16 @@ func New(a *App) *App {
 func (a *App) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = r.WithContext(a.NewContext(r.Context()))
-		next.ServeHTTP(w, r)
+		bw := NewBufferedResponseWriter(w)
+		next.ServeHTTP(bw, r)
 
 		ct := ChangeTrackerFromContext(r.Context())
 		if err := ct.CommitChanges(r.Context()); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := bw.Close(); err != nil {
+			log.Println(err)
 		}
 	})
 }
