@@ -15,6 +15,12 @@ const (
 	changeTrackerContextKey
 )
 
+type DispatchFlags int
+
+const (
+	CustomAggregateID DispatchFlags = 1 << iota //when provided with a custom aggregate id, should not fail loading aggregate
+)
+
 type Dispatcher interface {
 	DispatchMessage(ctx context.Context, msg Message) error
 }
@@ -102,13 +108,18 @@ func (a *App) NewContext(ctx context.Context) context.Context {
 	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, NewChangeTracker(a)), cqrsContextKey, a)
 }
 
-func (a *App) DispatchMessage(ctx context.Context, msg Message) error {
+func (a *App) DispatchMessage(ctx context.Context, msg Message, opts ...DispatchFlags) error {
+	//TODO should we separate dispatch event/command, only provide public method for commands maybe?
 	if msg.Meta().MessageType.IsEvent() {
 		return a.dispatchEvent(ctx, msg)
 	}
 
 	if msg.Meta().MessageType.IsCommand() {
-		return a.dispatchCommand(ctx, msg)
+		var f DispatchFlags
+		for i := range opts {
+			f |= opts[i]
+		}
+		return a.dispatchCommand(ctx, msg,f)
 	}
 
 	return fmt.Errorf("unknown instance type")
@@ -124,18 +135,20 @@ func (a *App) dispatchEvent(ctx context.Context, msg Message) error {
 	return nil
 }
 
-func (a *App) dispatchCommand(ctx context.Context, msg Message) error {
+func (a *App) dispatchCommand(ctx context.Context, msg Message, opts DispatchFlags) error {
 	aggr := a.GetAggregate(msg.Meta().AggregateType)
 	if aggr == nil {
 		return fmt.Errorf("unknown aggregate")
 	}
 
-	if msg.Meta().AggregateID != "" {
-		if err := a.LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr); err != nil {
-			return err
+	if opts&(CustomAggregateID) == 0 {
+		if msg.Meta().AggregateID != "" {
+			if err := a.LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr); err != nil {
+				return err
+			}
+		} else {
+			msg.Meta().AggregateID = a.NewID()
 		}
-	} else {
-		msg.Meta().AggregateID = a.NewID()
 	}
 
 	return aggr.Handle(ctx, msg)

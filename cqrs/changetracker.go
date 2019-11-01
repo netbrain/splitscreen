@@ -30,6 +30,7 @@ func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
 			return err
 		}
 	}
+	//TODO Store & Emit should be in a single transaction
 	if err := c.app.Store(ctx, c.changes...); err != nil {
 		return err
 	}
