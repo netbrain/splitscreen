@@ -60,7 +60,7 @@
             return err
         }
         meta := event.Meta()
-        newMeta := cqrs.FromContext(ctx).NewMessage(meta.MessageType,msg.Meta().AggregateID).Meta()
+        newMeta := cqrs.FromContext(ctx).NewMessageWithCause(meta.MessageType,msg.Meta().AggregateID, msg.Meta()).Meta()
         *meta = *newMeta
         return a.Apply(ctx,event)
     }
@@ -88,8 +88,13 @@
     {{range .Commands}}
 
         func New{{.}}Message(ctx context.Context, data {{.}}, aggregateId ...string) *{{.}} {
-        data.MessageMeta = cqrs.FromContext(ctx).NewMessage({{.}}Type,aggregateId...).Meta()
-        return &data
+            data.MessageMeta = cqrs.FromContext(ctx).NewMessage({{.}}Type,aggregateId...).Meta()
+            return &data
+        }
+
+        func New{{.}}MessageWithCause(ctx context.Context, data {{.}}, aggregateId string, causedByMeta *cqrs.MessageMeta) *{{.}} {
+            data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause({{.}}Type,aggregateId,causedByMeta).Meta()
+            return &data
         }
 
         func (e *{{.}}) Meta() *cqrs.MessageMeta {
@@ -100,6 +105,11 @@
 
         func New{{.}}Message(ctx context.Context,data {{.}}, aggregateId ...string) *{{.}} {
             data.MessageMeta = cqrs.FromContext(ctx).NewMessage({{.}}Type,aggregateId...).Meta()
+            return &data
+        }
+
+        func New{{.}}MessageWithCause(ctx context.Context, data {{.}}, aggregateId string, causedByMeta *cqrs.MessageMeta) *{{.}} {
+            data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause({{.}}Type,aggregateId,causedByMeta).Meta()
             return &data
         }
 

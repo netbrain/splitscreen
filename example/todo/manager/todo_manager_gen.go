@@ -5,7 +5,8 @@ package manager
 import (
 	context "context"
 
-	"github.com/netbrain/splitscreen/cqrs"
+	cqrs "github.com/netbrain/splitscreen/cqrs"
+
 	todo "github.com/netbrain/splitscreen/example/todo/domain/todo"
 )
 

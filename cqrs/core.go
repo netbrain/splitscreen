@@ -27,11 +27,13 @@ type Factory func(typ MessageType) Message
 
 type MessageMeta struct {
 	*AggregateMeta
-	MessageType MessageType            `json:"type"`
-	ID          string                 `json:"id"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Replay      bool                   `json:"replay"`
-	Data        map[string]interface{} `json:"data"`
+	MessageType   MessageType            `json:"type"`
+	ID            string                 `json:"id"`
+	CorrelationID string                 `json:"correlationId"`
+	CausationID   string                 `json:"causationId"`
+	Timestamp     time.Time              `json:"timestamp"`
+	Replay        bool                   `json:"replay"`
+	Data          map[string]interface{} `json:"data"`
 }
 
 func (m *MessageMeta) Set(key string, value interface{}) {

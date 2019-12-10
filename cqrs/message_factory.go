@@ -13,6 +13,7 @@ type messageInfo struct {
 type MessageFactory interface {
 	RegisterMessage(fn func() Message)
 	NewMessage(typ MessageType, aggregateId ...string) Message
+	NewMessageWithCause(typ MessageType, aggregateId string, causedBy *MessageMeta) Message
 }
 
 type DefaultMessageFactory struct {
@@ -50,11 +51,24 @@ func (a *DefaultMessageFactory) NewMessage(typ MessageType, aggregateId ...strin
 	}
 	msgInfo := a.fnMap[typ]
 	msg := msgInfo.fn()
-	msg.Meta().ID = a.idGen.NewID()
-	msg.Meta().Timestamp = time.Now().UTC()
+	meta := msg.Meta()
+	meta.ID = a.idGen.NewID()
+	meta.CorrelationID = a.idGen.NewID()
+	meta.Timestamp = time.Now().UTC()
 	if len(aggregateId) > 0 {
-		msg.Meta().AggregateID = aggregateId[0]
+		meta.AggregateID = aggregateId[0]
 	}
 
 	return msg
+}
+
+func (a *DefaultMessageFactory) NewMessageWithCause(typ MessageType, aggregateId string, causedByMeta *MessageMeta) (msg Message) {
+	msg = a.NewMessage(typ,aggregateId)
+	if msg == nil {
+		return
+	}
+	meta := msg.Meta()
+	meta.CausationID = causedByMeta.ID
+	meta.CorrelationID = causedByMeta.CorrelationID
+	return
 }

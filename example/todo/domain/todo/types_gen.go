@@ -122,7 +122,7 @@ func (a *Aggregate) Handle(ctx context.Context, msg cqrs.Message) (err error) {
 		return err
 	}
 	meta := event.Meta()
-	newMeta := cqrs.FromContext(ctx).NewMessage(meta.MessageType, msg.Meta().AggregateID).Meta()
+	newMeta := cqrs.FromContext(ctx).NewMessageWithCause(meta.MessageType, msg.Meta().AggregateID, msg.Meta()).Meta()
 	*meta = *newMeta
 	return a.Apply(ctx, event)
 }
@@ -158,12 +158,22 @@ func NewCreateCommandMessage(ctx context.Context, data CreateCommand, aggregateI
 	return &data
 }
 
+func NewCreateCommandMessageWithCause(ctx context.Context, data CreateCommand, aggregateId string, causedByMeta *cqrs.MessageMeta) *CreateCommand {
+	data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause(CreateCommandType, aggregateId, causedByMeta).Meta()
+	return &data
+}
+
 func (e *CreateCommand) Meta() *cqrs.MessageMeta {
 	return e.MessageMeta
 }
 
 func NewEditCommandMessage(ctx context.Context, data EditCommand, aggregateId ...string) *EditCommand {
 	data.MessageMeta = cqrs.FromContext(ctx).NewMessage(EditCommandType, aggregateId...).Meta()
+	return &data
+}
+
+func NewEditCommandMessageWithCause(ctx context.Context, data EditCommand, aggregateId string, causedByMeta *cqrs.MessageMeta) *EditCommand {
+	data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause(EditCommandType, aggregateId, causedByMeta).Meta()
 	return &data
 }
 
@@ -176,12 +186,22 @@ func NewCompleteCommandMessage(ctx context.Context, data CompleteCommand, aggreg
 	return &data
 }
 
+func NewCompleteCommandMessageWithCause(ctx context.Context, data CompleteCommand, aggregateId string, causedByMeta *cqrs.MessageMeta) *CompleteCommand {
+	data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause(CompleteCommandType, aggregateId, causedByMeta).Meta()
+	return &data
+}
+
 func (e *CompleteCommand) Meta() *cqrs.MessageMeta {
 	return e.MessageMeta
 }
 
 func NewCreatedEventMessage(ctx context.Context, data CreatedEvent, aggregateId ...string) *CreatedEvent {
 	data.MessageMeta = cqrs.FromContext(ctx).NewMessage(CreatedEventType, aggregateId...).Meta()
+	return &data
+}
+
+func NewCreatedEventMessageWithCause(ctx context.Context, data CreatedEvent, aggregateId string, causedByMeta *cqrs.MessageMeta) *CreatedEvent {
+	data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause(CreatedEventType, aggregateId, causedByMeta).Meta()
 	return &data
 }
 
@@ -194,12 +214,22 @@ func NewEditedEventMessage(ctx context.Context, data EditedEvent, aggregateId ..
 	return &data
 }
 
+func NewEditedEventMessageWithCause(ctx context.Context, data EditedEvent, aggregateId string, causedByMeta *cqrs.MessageMeta) *EditedEvent {
+	data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause(EditedEventType, aggregateId, causedByMeta).Meta()
+	return &data
+}
+
 func (e *EditedEvent) Meta() *cqrs.MessageMeta {
 	return e.MessageMeta
 }
 
 func NewCompletedEventMessage(ctx context.Context, data CompletedEvent, aggregateId ...string) *CompletedEvent {
 	data.MessageMeta = cqrs.FromContext(ctx).NewMessage(CompletedEventType, aggregateId...).Meta()
+	return &data
+}
+
+func NewCompletedEventMessageWithCause(ctx context.Context, data CompletedEvent, aggregateId string, causedByMeta *cqrs.MessageMeta) *CompletedEvent {
+	data.MessageMeta = cqrs.FromContext(ctx).NewMessageWithCause(CompletedEventType, aggregateId, causedByMeta).Meta()
 	return &data
 }
 
