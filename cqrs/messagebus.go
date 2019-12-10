@@ -78,9 +78,8 @@ func (l *LocalMessageBus) Emit(ctx context.Context, messages ...Message) error {
 }
 
 func (l *LocalMessageBus) emit(ctx context.Context, subTyp SubscriptionType, messages ...Message) error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	for _, msg := range messages {
+		l.mu.Lock()
 		var subscribers []AggregateHandleFunc
 		for _, s := range l.subscriptions[l.hashFn(subTyp,msg.Meta().MessageType)] {
 			subscribers = append(subscribers,s...)
@@ -88,6 +87,7 @@ func (l *LocalMessageBus) emit(ctx context.Context, subTyp SubscriptionType, mes
 		for _, s := range l.subscriptions[l.hashFn(subTyp,"")] {
 			subscribers = append(subscribers,s...)
 		}
+		l.mu.Unlock()
 		for _, fn := range subscribers {
 			if err := fn(ctx, msg); err != nil {
 				return err
