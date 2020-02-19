@@ -61,6 +61,7 @@
         }
         meta := event.Meta()
         newMeta := cqrs.FromContext(ctx).NewMessageWithCause(meta.MessageType,msg.Meta().AggregateID, msg.Meta()).Meta()
+        newMeta.Data = msg.Meta().Data
         *meta = *newMeta
         return a.Apply(ctx,event)
     }
