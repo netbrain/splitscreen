@@ -2,7 +2,6 @@ package cqrs
 
 import (
 	"context"
-	"fmt"
 	"github.com/netbrain/splitscreen/cqrs/json"
 	"net/http"
 )
@@ -21,12 +20,13 @@ const (
 )
 
 type Dispatcher interface {
-	DispatchMessage(ctx context.Context, msg Message) error
+	DispatchMessage(ctx context.Context, msg Message, opts ...DispatchFlags) error
 }
 
 type App struct {
 	Serializer
 	Deserializer
+	Dispatcher
 	EventStore
 	MessageBus
 	IDGenerator
@@ -45,6 +45,7 @@ func New(a *App) *App {
 	def := &App{
 		Serializer:       serializer,
 		Deserializer:     deserializer,
+		Dispatcher: 	  NewDefaultDispatcher(),
 		EventStore:       eventStore,
 		MessageBus:       NewLocalMessageBus(),
 		IDGenerator:      idGen,
@@ -83,6 +84,9 @@ func New(a *App) *App {
 	if a.ManagerRepository == nil {
 		a.ManagerRepository = def.ManagerRepository
 	}
+	if a.Dispatcher == nil {
+		a.Dispatcher = def.Dispatcher
+	}
 	return a
 }
 
@@ -100,52 +104,6 @@ func (a *App) Middleware(next http.Handler) http.Handler {
 
 func (a *App) NewContext(ctx context.Context) context.Context {
 	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, NewChangeTracker(a)), cqrsContextKey, a)
-}
-
-func (a *App) DispatchMessage(ctx context.Context, msg Message, opts ...DispatchFlags) error {
-	//TODO should we separate dispatch event/command, only provide public method for commands maybe?
-	if msg.Meta().MessageType.IsEvent() {
-		return a.dispatchEvent(ctx, msg)
-	}
-
-	if msg.Meta().MessageType.IsCommand() {
-		var f DispatchFlags
-		for i := range opts {
-			f |= opts[i]
-		}
-		return a.dispatchCommand(ctx, msg,f)
-	}
-
-	return fmt.Errorf("unknown instance type")
-}
-
-func (a *App) dispatchEvent(ctx context.Context, msg Message) error {
-	if !msg.Meta().Replay {
-		changeTracker := ChangeTrackerFromContext(ctx)
-		if err := changeTracker.TrackChange(msg); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *App) dispatchCommand(ctx context.Context, msg Message, opts DispatchFlags) error {
-	aggr := a.GetAggregate(msg.Meta().AggregateType)
-	if aggr == nil {
-		return fmt.Errorf("unknown aggregate")
-	}
-
-	if opts&(CustomAggregateID) == 0 {
-		if msg.Meta().AggregateID != "" {
-			if err := a.LoadAggregate(ctx, msg.Meta().AggregateMeta, aggr); err != nil {
-				return err
-			}
-		} else {
-			msg.Meta().AggregateID = a.NewID()
-		}
-	}
-
-	return aggr.Handle(ctx, msg)
 }
 
 func FromContext(ctx context.Context) *App {
