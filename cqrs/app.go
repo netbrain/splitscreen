@@ -13,16 +13,6 @@ const (
 	changeTrackerContextKey
 )
 
-type DispatchFlags int
-
-const (
-	CustomAggregateID DispatchFlags = 1 << iota //when provided with a custom aggregate id, should not fail loading aggregate
-)
-
-type Dispatcher interface {
-	DispatchMessage(ctx context.Context, msg Message, opts ...DispatchFlags) error
-}
-
 type App struct {
 	Serializer
 	Deserializer
@@ -32,6 +22,7 @@ type App struct {
 	IDGenerator
 	AggregateFactory
 	MessageFactory
+	ChangeTrackerFactory
 	*ViewRepository
 	*ManagerRepository
 }
@@ -43,16 +34,17 @@ func New(a *App) *App {
 	messageFactory := NewDefaultMessageFactory(idGen)
 	eventStore := NewMemoryEventStore(serializer, deserializer, messageFactory)
 	def := &App{
-		Serializer:       serializer,
-		Deserializer:     deserializer,
-		Dispatcher: 	  NewDefaultDispatcher(),
-		EventStore:       eventStore,
-		MessageBus:       NewLocalMessageBus(),
-		IDGenerator:      idGen,
-		AggregateFactory: aggregateFactory,
-		MessageFactory:   messageFactory,
-		ViewRepository:   NewViewRepository(),
-		ManagerRepository: NewManagerRepository(),
+		Serializer:           serializer,
+		Deserializer:         deserializer,
+		Dispatcher:           NewDefaultDispatcher(),
+		ChangeTrackerFactory: NewDefaultChangeTrackerFactory(),
+		EventStore:           eventStore,
+		MessageBus:           NewLocalMessageBus(),
+		IDGenerator:          idGen,
+		AggregateFactory:     aggregateFactory,
+		MessageFactory:       messageFactory,
+		ViewRepository:       NewViewRepository(),
+		ManagerRepository:    NewManagerRepository(),
 	}
 	if a == nil {
 		return def
@@ -87,6 +79,9 @@ func New(a *App) *App {
 	if a.Dispatcher == nil {
 		a.Dispatcher = def.Dispatcher
 	}
+	if a.ChangeTrackerFactory == nil {
+		a.ChangeTrackerFactory = def.ChangeTrackerFactory
+	}
 	return a
 }
 
@@ -103,15 +98,15 @@ func (a *App) Middleware(next http.Handler) http.Handler {
 }
 
 func (a *App) NewContext(ctx context.Context) context.Context {
-	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, NewChangeTracker(a)), cqrsContextKey, a)
+	return context.WithValue(context.WithValue(ctx, changeTrackerContextKey, a.ChangeTrackerFactory.NewChangeTracker()), cqrsContextKey, a)
 }
 
 func FromContext(ctx context.Context) *App {
 	return ctx.Value(cqrsContextKey).(*App)
 }
 
-func ChangeTrackerFromContext(ctx context.Context) *ChangeTracker {
-	return ctx.Value(changeTrackerContextKey).(*ChangeTracker)
+func ChangeTrackerFromContext(ctx context.Context) ChangeTracker {
+	return ctx.Value(changeTrackerContextKey).(ChangeTracker)
 }
 
 func Handle(ctx context.Context, msg Message) error {

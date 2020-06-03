@@ -5,6 +5,16 @@ import (
 	"fmt"
 )
 
+type DispatchFlags int
+
+const (
+	CustomAggregateID DispatchFlags = 1 << iota //when provided with a custom aggregate id, should not fail loading aggregate
+)
+
+type Dispatcher interface {
+	DispatchMessage(ctx context.Context, msg Message, opts ...DispatchFlags) error
+}
+
 type DefaultDispatcher struct {}
 
 func NewDefaultDispatcher() Dispatcher {

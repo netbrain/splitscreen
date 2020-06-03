@@ -5,18 +5,34 @@ import (
 	"fmt"
 )
 
-type ChangeTracker struct {
+type ChangeTrackerFactory interface {
+	NewChangeTracker() ChangeTracker
+}
+
+type DefaultChangeTrackerFactory struct {}
+
+func NewDefaultChangeTrackerFactory() ChangeTrackerFactory {
+	return &DefaultChangeTrackerFactory{}
+}
+
+func (d *DefaultChangeTrackerFactory) NewChangeTracker() ChangeTracker {
+	return NewDefaultChangeTracker()
+}
+
+type ChangeTracker interface {
+	TrackChange(event Message) error
+	CommitChanges(ctx context.Context) error
+}
+
+type DefaultChangeTracker struct {
 	changes []Message
-	app     *App
 }
 
-func NewChangeTracker(app *App) *ChangeTracker {
-	return &ChangeTracker{
-		app: app,
-	}
+func NewDefaultChangeTracker() *DefaultChangeTracker {
+	return &DefaultChangeTracker{}
 }
 
-func (c *ChangeTracker) TrackChange(event Message) error {
+func (c *DefaultChangeTracker) TrackChange(event Message) error {
 	if !event.Meta().MessageType.IsEvent() {
 		return fmt.Errorf("expected event")
 	}
@@ -24,17 +40,18 @@ func (c *ChangeTracker) TrackChange(event Message) error {
 	return nil
 }
 
-func (c *ChangeTracker) CommitChanges(ctx context.Context) error {
+func (c *DefaultChangeTracker) CommitChanges(ctx context.Context) error {
+	app := FromContext(ctx)
 	for i := 0; i < len(c.changes); i++ {
-		if err := c.app.Manage(ctx, c.changes[i]); err != nil {
+		if err := app.Manage(ctx, c.changes[i]); err != nil {
 			return err
 		}
 	}
 	//TODO Store & Emit should be in a single transaction
-	if err := c.app.Store(ctx, c.changes...); err != nil {
+	if err := app.Store(ctx, c.changes...); err != nil {
 		return err
 	}
-	if err := c.app.Emit(ctx, c.changes...); err != nil {
+	if err := app.Emit(ctx, c.changes...); err != nil {
 		return err
 	}
 	c.changes = nil
