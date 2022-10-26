@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -32,27 +33,30 @@ type Type struct {
 
 type Import struct {
 	Alias string
-	Path string
+	Path  string
 }
 
 type View struct {
-	Imports []Import
+	Imports   []Import
 	Package   string
 	View      string
 	Listeners []Type
 }
 
-type Manager struct{
-	Imports []Import
+type Manager struct {
+	Imports   []Import
 	Package   string
 	Manager   string
 	Listeners []Type
 }
 
+//go:embed tmpl/*
+var tmplDir embed.FS
+
 var action = flag.String("generate", "handler", "handler/view/manager")
 
-func init(){
-	log.SetFlags(log.LstdFlags|log.Lshortfile)
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
 func main() {
@@ -61,16 +65,6 @@ func main() {
 	log.Printf("generating code from %s", defFile)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	lookupPaths := []string{os.Getenv("SSPATH"), filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "netbrain", "splitscreen", "cmd", "splitscreen")}
-	for _, p := range lookupPaths {
-		if _, err := os.Stat(p); !os.IsNotExist(err) {
-			if err := os.Chdir(p); err != nil {
-				log.Fatal(err)
-			}
-			break
-		}
 	}
 
 	switch *action {
@@ -115,17 +109,17 @@ func writeView(defFile string) error {
 	meta.Package = f.Name.Name
 
 	ast.Inspect(f, func(n ast.Node) bool {
-		imp,ok := n.(*ast.ImportSpec)
+		imp, ok := n.(*ast.ImportSpec)
 		if ok {
 			var alias string
-			path := strings.Trim(imp.Path.Value,`"`)
+			path := strings.Trim(imp.Path.Value, `"`)
 			if imp.Name != nil && imp.Name.Name != "." {
 				alias = imp.Name.Name
-			}else {
-				parts := strings.Split(path,"/")
+			} else {
+				parts := strings.Split(path, "/")
 				alias = parts[len(parts)-1]
 			}
-			meta.Imports = append(meta.Imports,Import{
+			meta.Imports = append(meta.Imports, Import{
 				Alias: alias,
 				Path:  path,
 			})
@@ -150,7 +144,7 @@ func writeView(defFile string) error {
 					if !ok {
 						continue
 					}
-					pkgIdent,ok := selc.X.(*ast.Ident)
+					pkgIdent, ok := selc.X.(*ast.Ident)
 					if !ok {
 						continue
 					}
@@ -168,7 +162,7 @@ func writeView(defFile string) error {
 		return true
 	})
 
-	tmpl := template.Must(template.ParseGlob("./tmpl/*"))
+	tmpl := template.Must(template.ParseFS(tmplDir, "tmpl/*"))
 	buffer := &bytes.Buffer{}
 	err = tmpl.ExecuteTemplate(buffer, "view", &meta)
 	if err != nil {
@@ -198,17 +192,17 @@ func writeManager(defFile string) error {
 	meta.Package = f.Name.Name
 
 	ast.Inspect(f, func(n ast.Node) bool {
-		imp,ok := n.(*ast.ImportSpec)
+		imp, ok := n.(*ast.ImportSpec)
 		if ok {
 			var alias string
-			path := strings.Trim(imp.Path.Value,`"`)
+			path := strings.Trim(imp.Path.Value, `"`)
 			if imp.Name != nil && imp.Name.Name != "." {
 				alias = imp.Name.Name
-			}else {
-				parts := strings.Split(path,"/")
+			} else {
+				parts := strings.Split(path, "/")
 				alias = parts[len(parts)-1]
 			}
-			meta.Imports = append(meta.Imports,Import{
+			meta.Imports = append(meta.Imports, Import{
 				Alias: alias,
 				Path:  path,
 			})
@@ -233,7 +227,7 @@ func writeManager(defFile string) error {
 					if !ok {
 						continue
 					}
-					pkgIdent,ok := selc.X.(*ast.Ident)
+					pkgIdent, ok := selc.X.(*ast.Ident)
 					if !ok {
 						continue
 					}
@@ -251,7 +245,7 @@ func writeManager(defFile string) error {
 		return true
 	})
 
-	tmpl := template.Must(template.ParseGlob("./tmpl/*"))
+	tmpl := template.Must(template.ParseFS(tmplDir, "tmpl/*"))
 	buffer := &bytes.Buffer{}
 	err = tmpl.ExecuteTemplate(buffer, "manager", &meta)
 	if err != nil {
@@ -299,7 +293,7 @@ func writeBoilerplate(defFile string) (meta Handler, err error) {
 		return
 	}
 
-	tmpl := template.Must(template.ParseGlob("./tmpl/*"))
+	tmpl := template.Must(template.ParseFS(tmplDir, "tmpl/*"))
 
 	buffer := &bytes.Buffer{}
 	err = tmpl.ExecuteTemplate(buffer, "boilerplate", meta)
@@ -321,7 +315,7 @@ func writeHandlers(meta Handler) error {
 	output := path.Join(path.Dir(meta.File), strings.TrimSuffix(path.Base(meta.File), path.Ext(meta.File))+"_handler.go")
 	if _, err := os.Stat(output); os.IsNotExist(err) {
 		buffer := bytes.NewBufferString(fmt.Sprintf(`package %s`, meta.Package))
-		tmpl := template.Must(template.ParseGlob("./tmpl/*"))
+		tmpl := template.Must(template.ParseFS(tmplDir, "tmpl/*"))
 
 		if err := tmpl.ExecuteTemplate(buffer, "handler", meta); err != nil {
 			return err
@@ -373,7 +367,7 @@ func writeHandlers(meta Handler) error {
 		return err
 	}
 	buffer := bytes.NewBuffer(inBuf)
-	tmpl := template.Must(template.ParseGlob("./tmpl/*"))
+	tmpl := template.Must(template.ParseFS(tmplDir, "tmpl/*"))
 
 	if err := tmpl.ExecuteTemplate(buffer, "handler_partial", meta); err != nil {
 		return err
