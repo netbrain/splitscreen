@@ -3,6 +3,7 @@ package cqrs
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 type EventLoadResult struct {
@@ -14,6 +15,7 @@ type EventStore interface {
 	Store(ctx context.Context, events ...Message) error
 	Load(ctx context.Context, id string, typ AggregateType) <-chan *EventLoadResult
 	LoadAggregate(ctx context.Context, meta *AggregateMeta, dst AggregateRoot) error
+	LoadAggregateUntilTime(ctx context.Context, meta *AggregateMeta, dst AggregateRoot, time time.Time) error
 }
 
 type MemoryEventStore struct {
@@ -73,4 +75,8 @@ func (m *MemoryEventStore) Load(ctx context.Context, id string, typ AggregateTyp
 
 func (m *MemoryEventStore) LoadAggregate(ctx context.Context, meta *AggregateMeta, dst AggregateRoot) error {
 	return LoadAggregate(ctx, m, meta, dst)
+}
+
+func (m *MemoryEventStore) LoadAggregateUntilTime(ctx context.Context, meta *AggregateMeta, dst AggregateRoot, time time.Time) error {
+	return LoadAggregateUntilTime(ctx, m, meta, dst, time)
 }

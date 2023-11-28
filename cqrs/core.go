@@ -92,6 +92,10 @@ func NewRawMessage(s Serializer, m Message) (*RawMessage, error) {
 }
 
 func LoadAggregate(ctx context.Context, es EventStore, meta *AggregateMeta, dst AggregateRoot) error {
+	return LoadAggregateUntilTime(ctx, es, meta, dst, time.Now())
+}
+
+func LoadAggregateUntilTime(ctx context.Context, es EventStore, meta *AggregateMeta, dst AggregateRoot, time time.Time) error {
 	aggrMeta := dst.Meta()
 	if aggrMeta == nil {
 		return ErrMetaNotPresent
@@ -108,6 +112,9 @@ func LoadAggregate(ctx context.Context, es EventStore, meta *AggregateMeta, dst 
 	result := es.Load(ctx, meta.AggregateID, meta.AggregateType)
 	var count int
 	for e := range result {
+		if e.Message.Meta().Timestamp.After(time) {
+			break
+		}
 		count++
 		if e.Err != nil {
 			return e.Err
