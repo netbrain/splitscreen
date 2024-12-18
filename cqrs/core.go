@@ -109,6 +109,10 @@ func LoadAggregateUntilTime(ctx context.Context, es EventStore, meta *AggregateM
 		return ErrNoID
 	}
 
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
+
 	result := es.Load(ctx, meta.AggregateID, meta.AggregateType)
 	var count int
 	for e := range result {
