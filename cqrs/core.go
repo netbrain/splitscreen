@@ -116,7 +116,8 @@ func LoadAggregateUntilTime(ctx context.Context, es EventStore, meta *AggregateM
 	result := es.Load(ctx, meta.AggregateID, meta.AggregateType)
 	var count int
 	for e := range result {
-		if e.Message.Meta().Timestamp.After(time) {
+		eventTime := e.Message.Meta().Timestamp
+		if time.Compare(eventTime) <= 0 {
 			break
 		}
 		count++

@@ -45,6 +45,7 @@ func (a *DefaultMessageFactory) RegisterMessage(fn func() Message) {
 	}
 }
 
+
 func (a *DefaultMessageFactory) NewMessage(typ MessageType, aggregateId ...string) Message {
 	if _, ok := a.fnMap[typ]; !ok {
 		return nil
