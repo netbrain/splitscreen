@@ -11,6 +11,20 @@ var ErrMetaNotPresent = fmt.Errorf("meta not initialized on aggregate")
 var ErrNoID = fmt.Errorf("no id specified on aggregate")
 var ErrNoEvents = fmt.Errorf("no events")
 
+type UntilFunc func(event Message) bool
+
+var UntilBeforeTime = func(time time.Time) UntilFunc {
+	return func(event Message) bool {
+		return event.Meta().Timestamp.Compare(time) < 0
+	}
+}
+
+var UntilToTime = func(time time.Time) UntilFunc {
+	return func(event Message) bool {
+		return event.Meta().Timestamp.Compare(time) <= 0
+	}
+}
+
 type Serializer interface {
 	Serialize(src interface{}) ([]byte, error)
 }
@@ -91,18 +105,10 @@ func NewRawMessage(s Serializer, m Message) (*RawMessage, error) {
 	}, err
 }
 
-func LoadAggregate(ctx context.Context, es EventStore, meta *AggregateMeta, dst AggregateRoot) error {
-	return LoadAggregateUntilTime(ctx, es, meta, dst, time.Now())
-}
-
-func LoadAggregateUntilTime(ctx context.Context, es EventStore, meta *AggregateMeta, dst AggregateRoot, time time.Time) error {
+func LoadAggregate(ctx context.Context, es EventStore, meta *AggregateMeta, dst AggregateRoot, untilFns ... UntilFunc) error {
 	aggrMeta := dst.Meta()
 	if aggrMeta == nil {
 		return ErrMetaNotPresent
-	}
-
-	if aggrMeta.loaded {
-		return nil
 	}
 
 	if meta.AggregateID == "" {
@@ -114,10 +120,14 @@ func LoadAggregateUntilTime(ctx context.Context, es EventStore, meta *AggregateM
 	defer cancel()
 
 	result := es.Load(ctx, meta.AggregateID, meta.AggregateType)
+
+	var until func(event Message) bool
+	if len(untilFns) > 0 {
+		until = untilFns[0]
+	}
 	var count int
 	for e := range result {
-		eventTime := e.Message.Meta().Timestamp
-		if time.Compare(eventTime) <= 0 {
+		if until != nil && !until(e.Message) {
 			break
 		}
 		count++

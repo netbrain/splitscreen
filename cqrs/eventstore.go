@@ -3,7 +3,6 @@ package cqrs
 import (
 	"context"
 	"sync"
-	"time"
 )
 
 type EventLoadResult struct {
@@ -13,9 +12,9 @@ type EventLoadResult struct {
 
 type EventStore interface {
 	Store(ctx context.Context, events ...Message) error
-	Load(ctx context.Context, id string, typ AggregateType) <-chan *EventLoadResult
-	LoadAggregate(ctx context.Context, meta *AggregateMeta, dst AggregateRoot) error
-	LoadAggregateUntilTime(ctx context.Context, meta *AggregateMeta, dst AggregateRoot, time time.Time) error
+	Load(ctx context.Context, id string, typ AggregateType, until ... UntilFunc) <-chan *EventLoadResult
+	LoadAggregate(ctx context.Context, meta *AggregateMeta, dst AggregateRoot, until ... UntilFunc) error
+	Replay(ctx context.Context) <-chan *EventLoadResult
 }
 
 type MemoryEventStore struct {
@@ -25,6 +24,7 @@ type MemoryEventStore struct {
 	events []*RawMessage
 	mutex  sync.Mutex
 }
+
 
 func NewMemoryEventStore(s Serializer, d Deserializer, m MessageFactory) *MemoryEventStore {
 	return &MemoryEventStore{
@@ -47,7 +47,7 @@ func (m *MemoryEventStore) Store(ctx context.Context, events ...Message) error {
 	return nil
 }
 
-func (m *MemoryEventStore) Load(ctx context.Context, id string, typ AggregateType) <-chan *EventLoadResult {
+func (m *MemoryEventStore) Load(ctx context.Context, id string, typ AggregateType, until ...UntilFunc) <-chan *EventLoadResult {
 	out := make(chan *EventLoadResult)
 	go func() {
 		defer close(out)
@@ -55,6 +55,10 @@ func (m *MemoryEventStore) Load(ctx context.Context, id string, typ AggregateTyp
 		defer m.mutex.Unlock()
 		for _, pe := range m.events {
 			if pe.Meta().AggregateID == id && pe.Meta().AggregateType == typ {
+				if len(until) > 0 && !until[0](pe){
+					break
+				}
+
 				pe.Replay = true
 				impl := m.NewMessage(pe.MessageType)
 				if err := pe.ToImplementation(m, impl); err != nil {
@@ -70,13 +74,14 @@ func (m *MemoryEventStore) Load(ctx context.Context, id string, typ AggregateTyp
 		}
 	}()
 	return out
-
 }
 
-func (m *MemoryEventStore) LoadAggregate(ctx context.Context, meta *AggregateMeta, dst AggregateRoot) error {
-	return LoadAggregate(ctx, m, meta, dst)
+func (m *MemoryEventStore) Replay(ctx context.Context) <-chan *EventLoadResult {
+	panic("implement me")
 }
 
-func (m *MemoryEventStore) LoadAggregateUntilTime(ctx context.Context, meta *AggregateMeta, dst AggregateRoot, time time.Time) error {
-	return LoadAggregateUntilTime(ctx, m, meta, dst, time)
+func (m *MemoryEventStore) LoadAggregate(ctx context.Context, meta *AggregateMeta, dst AggregateRoot, until ... UntilFunc) error {
+	return LoadAggregate(ctx, m, meta, dst, until...)
 }
+
+
