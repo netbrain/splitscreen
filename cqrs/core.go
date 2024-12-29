@@ -139,11 +139,12 @@ func LoadAggregate(ctx context.Context, es EventStore, meta *AggregateMeta, dst 
 		}
 	}
 
+	*aggrMeta = *meta
+	aggrMeta.loaded = true
+
 	if count == 0 {
 		return ErrNoEvents
 	}
 
-	*aggrMeta = *meta
-	aggrMeta.loaded = true
 	return nil
 }

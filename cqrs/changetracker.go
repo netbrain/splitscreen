@@ -22,6 +22,7 @@ func (d *DefaultChangeTrackerFactory) NewChangeTracker() ChangeTracker {
 type ChangeTracker interface {
 	TrackChange(event Message) error
 	CommitChanges(ctx context.Context) error
+	Changes() []Message
 }
 
 type DefaultChangeTracker struct {
@@ -56,4 +57,8 @@ func (c *DefaultChangeTracker) CommitChanges(ctx context.Context) error {
 	}
 	c.changes = nil
 	return nil
+}
+
+func (c *DefaultChangeTracker) Changes() []Message {
+	return append([]Message{},c.changes...)
 }
