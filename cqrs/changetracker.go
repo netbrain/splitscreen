@@ -27,16 +27,26 @@ type ChangeTracker interface {
 
 type DefaultChangeTracker struct {
 	changes []Message
+	changeSet map[string]struct{} // uniqueness set
 }
 
 func NewDefaultChangeTracker() *DefaultChangeTracker {
-	return &DefaultChangeTracker{}
+	return &DefaultChangeTracker{
+		changeSet: make(map[string]struct{}),
+	}
 }
 
 func (c *DefaultChangeTracker) TrackChange(event Message) error {
-	if !event.Meta().MessageType.IsEvent() {
+	meta := event.Meta()
+	if !meta.MessageType.IsEvent() {
 		return fmt.Errorf("expected event")
 	}
+
+	if _, exists := c.changeSet[meta.ID]; exists {
+		// already tracked, ignoring
+		return nil
+	}
+	c.changeSet[meta.ID] = struct{}{}
 	c.changes = append(c.changes, event)
 	return nil
 }
