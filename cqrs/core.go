@@ -142,7 +142,26 @@ func LoadAggregate(ctx context.Context, es EventStore, meta *AggregateMeta, dst 
 	*aggrMeta = *meta
 	aggrMeta.loaded = true
 
-	if count == 0 {
+
+	// Handle non-persisted changes
+	hasNonPersisted := false
+	changeTracker := ChangeTrackerFromContext(ctx)
+	changes := changeTracker.Changes()
+	for _, change := range changes {
+		cm := change.Meta()
+		if cm.AggregateType != meta.AggregateType || cm.AggregateID != meta.AggregateID {
+			continue
+		}
+
+		if len(untilFns) == 0 || untilFns[0](change) {
+			hasNonPersisted = true
+			if applyErr := dst.Handle(ctx, change); applyErr != nil {
+				return fmt.Errorf("failed to apply event from change tracker to aggregate type '%s' with id '%s': %w", meta.AggregateType, meta.AggregateID, applyErr)
+			}
+		}
+	}
+
+	if count == 0 && !hasNonPersisted {
 		return ErrNoEvents
 	}
 
